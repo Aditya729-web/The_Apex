@@ -1,338 +1,104 @@
-import React, { useMemo, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import {
-  LayoutDashboard, UserRound, BookOpen, Video, ClipboardList, FileText,
-  CalendarDays, BarChart3, CreditCard, Megaphone, LifeBuoy, Settings,
-  LogOut, Search, Bell, Moon, Sun, Menu, X, Users, GraduationCap,
-  UploadCloud, ShieldCheck, Eye, EyeOff, ChevronRight, CheckCircle2,
-  Clock3, Database, Monitor, Code2, Plus, MoreVertical, UserCog,
-  Download, TrendingUp
-} from 'lucide-react';
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  PieChart, Pie, Cell, BarChart, Bar
-} from 'recharts';
+import React, {useEffect, useMemo, useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import {LayoutDashboard,Users,BookOpen,Megaphone,ClipboardList,FileUp,Settings,LogOut,Menu,X,Search,Bell,Plus,Edit3,Trash2,ShieldCheck,UserCheck,UserX,Eye,EyeOff,ChevronRight,GraduationCap,CalendarDays,FileText,CheckCircle2,Clock3,AlertCircle,Save,RotateCcw,Download,Mail,Phone,Hash,LockKeyhole} from 'lucide-react';
 import './styles.css';
 
-const DEMO_USERS = {
-  'admin@theapex.com': { password: 'Apex@2026', role: 'admin', name: 'Apex Admin' },
-  'student@theapex.com': { password: 'Student@2026', role: 'student', name: 'Aditya Singh' }
+const ADMIN={email:'admin@theapex.com',password:'Apex@2026',name:'Apex Administrator',role:'admin'};
+const DB_KEY='apex-final-db-v1';
+const SESSION_KEY='apex-final-session-v1';
+const emptyDB={users:[],courses:[],announcements:[],assignments:[],materials:[],audit:[]};
+const uid=()=>crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+const loadDB=()=>{try{return {...emptyDB,...JSON.parse(localStorage.getItem(DB_KEY)||'{}')}}catch{return structuredClone(emptyDB)}};
+const saveDB=db=>localStorage.setItem(DB_KEY,JSON.stringify(db));
+const dateNow=()=>new Date().toLocaleString();
+
+function App(){
+ const [db,setDB]=useState(loadDB);
+ const [session,setSession]=useState(()=>{try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}});
+ useEffect(()=>saveDB(db),[db]);
+ const login=(email,password)=>{
+  const e=email.trim().toLowerCase();
+  if(e===ADMIN.email && password===ADMIN.password){const s={...ADMIN,password:undefined};setSession(s);localStorage.setItem(SESSION_KEY,JSON.stringify(s));return null}
+  const found=db.users.find(u=>u.email.toLowerCase()===e&&u.password===password);
+  if(!found)return 'Invalid email or password.';
+  if(found.status!=='active')return 'This account is suspended. Contact the administrator.';
+  const s={id:found.id,email:found.email,name:found.name,role:'student'};setSession(s);localStorage.setItem(SESSION_KEY,JSON.stringify(s));return null;
+ };
+ const logout=()=>{setSession(null);localStorage.removeItem(SESSION_KEY)};
+ const updateDB=(updater,action)=>setDB(prev=>{const next=typeof updater==='function'?updater(prev):updater;return {...next,audit:[{id:uid(),action,time:dateNow()},...(next.audit||[])].slice(0,50)}});
+ return session?<Portal session={session} db={db} updateDB={updateDB} logout={logout}/>:<Login onLogin={login}/>;
+}
+
+function Login({onLogin}){
+ const [email,setEmail]=useState(ADMIN.email),[password,setPassword]=useState(ADMIN.password),[show,setShow]=useState(false),[error,setError]=useState('');
+ const submit=e=>{e.preventDefault();setError(onLogin(email,password)||'')};
+ return <main className="login-page"><section className="login-visual"><div className="brand"><Logo/><div><b>THE APEX</b><span>EXCELLENCE REDEFINED</span></div></div><div className="hero-copy"><small>ACADEMIC MANAGEMENT PORTAL</small><h1>A cleaner way to manage your institution.</h1><p>Secure role-based access, user management, courses, notices, assignments and resources in one responsive workspace.</p><div className="feature-row"><div><ShieldCheck/><span>Single-admin control</span></div><div><UserCheck/><span>Approved users only</span></div><div><LayoutDashboard/><span>Live empty-state dashboard</span></div></div></div><div className="visual-card"><div className="fakebar"></div><div className="fake-grid"><i/><i/><i/><i className="wide"/><i/><i/></div></div></section><section className="login-side"><form className="login-card" onSubmit={submit}><div className="mobile-brand brand"><Logo/><div><b>THE APEX</b><span>PORTAL</span></div></div><small className="overline">WELCOME BACK</small><h2>Sign in to continue</h2><p>Only the administrator and registered active users can access the portal.</p><label>Email address</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/><label>Password</label><div className="password"><input type={show?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} required/><button type="button" onClick={()=>setShow(!show)}>{show?<EyeOff/>:<Eye/>}</button></div>{error&&<div className="error"><AlertCircle/>{error}</div>}<button className="primary" type="submit">Sign in <ChevronRight/></button><div className="demo-note"><b>Default administrator</b><span>{ADMIN.email}</span><span>{ADMIN.password}</span></div></form></section></main>
+}
+const Logo=()=> <div className="logo">A</div>;
+
+const adminNav=[['Dashboard',LayoutDashboard],['Users',Users],['Courses',BookOpen],['Announcements',Megaphone],['Assignments',ClipboardList],['Materials',FileUp],['Settings',Settings]];
+const studentNav=[['Dashboard',LayoutDashboard],['Courses',BookOpen],['Announcements',Megaphone],['Assignments',ClipboardList],['Materials',FileUp],['Profile',Users]];
+
+function Portal({session,db,updateDB,logout}){
+ const admin=session.role==='admin', nav=admin?adminNav:studentNav;
+ const [active,setActive]=useState('Dashboard'),[open,setOpen]=useState(false),[query,setQuery]=useState('');
+ return <div className="shell"><aside className={open?'sidebar open':'sidebar'}><div className="brand"><Logo/><div><b>THE APEX</b><span>{admin?'ADMIN CONSOLE':'STUDENT PORTAL'}</span></div></div><button className="close" onClick={()=>setOpen(false)}><X/></button><nav>{nav.map(([n,I])=><button key={n} className={active===n?'active':''} onClick={()=>{setActive(n);setOpen(false)}}><I/><span>{n}</span></button>)}</nav><div className="side-bottom"><div className="role"><ShieldCheck/><div><b>{admin?'Sole Administrator':'Registered User'}</b><span>{session.email}</span></div></div><button onClick={logout}><LogOut/>Logout</button></div></aside>{open&&<div className="overlay" onClick={()=>setOpen(false)}/>}<main className="main"><header><button className="hamb" onClick={()=>setOpen(true)}><Menu/></button><div className="header-title"><span>Welcome back,</span><b>{session.name}</b></div><div className="header-actions"><div className="search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search current page..."/></div><button><Bell/><em>0</em></button><div className="avatar">{session.name.split(' ').map(x=>x[0]).join('').slice(0,2)}</div></div></header><section className="content"><Page active={active} admin={admin} session={session} db={db} updateDB={updateDB} query={query}/></section></main></div>
+}
+
+function Page(p){
+ if(p.active==='Dashboard')return p.admin?<AdminDashboard {...p}/>:<StudentDashboard {...p}/>;
+ if(p.active==='Users')return <UsersPage {...p}/>;
+ if(p.active==='Courses')return <CollectionPage {...p} type="courses" title="Courses" icon={BookOpen}/>;
+ if(p.active==='Announcements')return <CollectionPage {...p} type="announcements" title="Announcements" icon={Megaphone}/>;
+ if(p.active==='Assignments')return <CollectionPage {...p} type="assignments" title="Assignments" icon={ClipboardList}/>;
+ if(p.active==='Materials')return <CollectionPage {...p} type="materials" title="Study Materials" icon={FileUp}/>;
+ if(p.active==='Settings')return <SettingsPage {...p}/>;
+ return <Profile session={p.session}/>;
+}
+
+const Stat=({I,label,value,sub})=><article className="stat"><div><I/></div><section><span>{label}</span><b>{value}</b><small>{sub}</small></section></article>;
+function AdminDashboard({db}){
+ const active=db.users.filter(u=>u.status==='active').length;
+ return <><Title title="Admin Dashboard" sub="Your portal currently contains no seeded institutional data."/><div className="stats"><Stat I={Users} label="Registered users" value={db.users.length} sub="0 at first launch"/><Stat I={UserCheck} label="Active users" value={active} sub="Approved accounts"/><Stat I={BookOpen} label="Courses" value={db.courses.length} sub="Published courses"/><Stat I={Bell} label="Recent activity" value={db.audit.length} sub="Admin actions logged"/></div><div className="dashboard-columns"><Panel title="Portal overview"><Empty I={LayoutDashboard} title="No operational data yet" text="Use the sidebar to register users, create courses, publish announcements, add assignments and upload material links."/></Panel><Panel title="Recent admin actions">{db.audit.length?db.audit.slice(0,6).map(a=><div className="activity" key={a.id}><CheckCircle2/><div><b>{a.action}</b><span>{a.time}</span></div></div>):<Empty I={Clock3} title="Zero recent activity" text="Actions performed by the administrator will appear here."/>}</Panel></div></>
+}
+function StudentDashboard({db,session}){
+ const courses=db.courses.filter(c=>!c.userIds?.length||c.userIds.includes(session.id));
+ return <><Title title="Student Dashboard" sub="Your approved academic information will appear here."/><div className="stats"><Stat I={BookOpen} label="Courses" value={courses.length} sub="Assigned to you"/><Stat I={ClipboardList} label="Assignments" value={db.assignments.length} sub="Currently published"/><Stat I={Megaphone} label="Announcements" value={db.announcements.length} sub="Available notices"/><Stat I={FileText} label="Materials" value={db.materials.length} sub="Learning resources"/></div><Panel title="Your workspace"><Empty I={GraduationCap} title="Your account is ready" text="The administrator has not yet added academic data. New courses, assignments and notices will appear automatically."/></Panel></>
+}
+const Title=({title,sub,action})=><div className="title"><div><h1>{title}</h1><p>{sub}</p></div>{action}</div>;
+const Panel=({title,children})=><section className="panel"><h3>{title}</h3>{children}</section>;
+const Empty=({I,title,text})=><div className="empty"><I/><h4>{title}</h4><p>{text}</p></div>;
+
+function UsersPage({db,updateDB,query}){
+ const [modal,setModal]=useState(false),[editing,setEditing]=useState(null);
+ const list=db.users.filter(u=>`${u.name} ${u.email} ${u.phone||''}`.toLowerCase().includes(query.toLowerCase()));
+ const save=data=>{if(editing){updateDB(d=>({...d,users:d.users.map(u=>u.id===editing.id?{...u,...data}:u)}),`Updated user: ${data.name}`)}else{updateDB(d=>({...d,users:[...d.users,{...data,id:uid(),createdAt:dateNow()}]}),`Registered user: ${data.name}`)}setModal(false);setEditing(null)};
+ const remove=u=>{if(confirm(`Delete ${u.name}? This cannot be undone.`))updateDB(d=>({...d,users:d.users.filter(x=>x.id!==u.id)}),`Deleted user: ${u.name}`)};
+ const toggle=u=>updateDB(d=>({...d,users:d.users.map(x=>x.id===u.id?{...x,status:x.status==='active'?'suspended':'active'}:x)}),`${u.status==='active'?'Suspended':'Activated'} user: ${u.name}`);
+ return <><Title title="Registered Users" sub="Create credentials and control who may access the portal." action={<button className="primary compact" onClick={()=>setModal(true)}><Plus/>Register user</button>}/><div className="notice"><LockKeyhole/><span>There are <b>{db.users.length}</b> registered users. The admin account is separate and cannot be created or removed here.</span></div><Panel title="User directory">{list.length?<div className="table-wrap"><table><thead><tr><th>User</th><th>Contact</th><th>Reference</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>{list.map(u=><tr key={u.id}><td><div className="usercell"><div>{u.name.slice(0,2).toUpperCase()}</div><span><b>{u.name}</b><small>{u.email}</small></span></div></td><td>{u.phone||'—'}</td><td>{u.reference||'—'}</td><td><span className={`pill ${u.status}`}>{u.status}</span></td><td>{u.createdAt}</td><td><div className="actions"><button title="Edit" onClick={()=>{setEditing(u);setModal(true)}}><Edit3/></button><button title={u.status==='active'?'Suspend':'Activate'} onClick={()=>toggle(u)}>{u.status==='active'?<UserX/>:<UserCheck/>}</button><button className="danger" title="Delete" onClick={()=>remove(u)}><Trash2/></button></div></td></tr>)}</tbody></table></div>:<Empty I={Users} title="No registered users" text="Register the first user to create their login credentials."/>}</Panel>{modal&&<UserModal user={editing} existing={db.users} close={()=>{setModal(false);setEditing(null)}} save={save}/>}</>
+}
+function UserModal({user,existing,close,save}){
+ const [f,setF]=useState(user||{name:'',email:'',password:'',phone:'',reference:'',status:'active'}),[show,setShow]=useState(false),[error,setError]=useState('');
+ const submit=e=>{e.preventDefault();if(existing.some(x=>x.email.toLowerCase()===f.email.toLowerCase()&&x.id!==user?.id)){setError('This email is already registered.');return}if(f.password.length<6){setError('Password must contain at least 6 characters.');return}save({...f,email:f.email.trim().toLowerCase()})};
+ return <div className="modal-bg"><form className="modal" onSubmit={submit}><div className="modal-head"><div><h3>{user?'Edit user':'Register new user'}</h3><p>Create portal credentials for an approved user.</p></div><button type="button" onClick={close}><X/></button></div><div className="form-grid"><label>Full name<input required value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></label><label>Email address<input required type="email" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/></label><label>Phone number<input value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/></label><label>Student/reference ID<input value={f.reference} onChange={e=>setF({...f,reference:e.target.value})}/></label><label className="full">Password<div className="password"><input required type={show?'text':'password'} value={f.password} onChange={e=>setF({...f,password:e.target.value})}/><button type="button" onClick={()=>setShow(!show)}>{show?<EyeOff/>:<Eye/>}</button></div></label><label>Status<select value={f.status} onChange={e=>setF({...f,status:e.target.value})}><option value="active">Active</option><option value="suspended">Suspended</option></select></label></div>{error&&<div className="error"><AlertCircle/>{error}</div>}<div className="modal-actions"><button type="button" className="secondary" onClick={close}>Cancel</button><button className="primary compact"><Save/>{user?'Save changes':'Register user'}</button></div></form></div>
+}
+
+const configs={
+ courses:{fields:[['title','Course title'],['code','Course code'],['teacher','Instructor']],desc:'Create and publish courses for registered users.'},
+ announcements:{fields:[['title','Announcement title'],['body','Message']],desc:'Publish notices visible to all registered users.'},
+ assignments:{fields:[['title','Assignment title'],['course','Course'],['due','Due date']],desc:'Create assignments and due dates.'},
+ materials:{fields:[['title','Resource title'],['course','Course'],['url','Resource URL']],desc:'Publish study material links for users.'}
 };
-
-const performance = [
-  { month: 'Jan', score: 38 }, { month: 'Feb', score: 44 },
-  { month: 'Mar', score: 55 }, { month: 'Apr', score: 47 },
-  { month: 'May', score: 58 }, { month: 'Jun', score: 72 },
-  { month: 'Jul', score: 81 }
-];
-
-const attendanceData = [
-  { name: 'Present', value: 86 },
-  { name: 'Absent', value: 8 },
-  { name: 'Leave', value: 6 }
-];
-
-const adminBars = [
-  { name: 'Mon', students: 128 }, { name: 'Tue', students: 142 },
-  { name: 'Wed', students: 136 }, { name: 'Thu', students: 151 },
-  { name: 'Fri', students: 145 }, { name: 'Sat', students: 112 }
-];
-
-const studentNav = [
-  ['Dashboard', LayoutDashboard], ['My Profile', UserRound], ['Courses', BookOpen],
-  ['Live Classes', Video], ['Assignments', ClipboardList], ['Exams', FileText],
-  ['Study Materials', BookOpen], ['Attendance', CalendarDays], ['Results', BarChart3],
-  ['Fees & Payments', CreditCard], ['Announcements', Megaphone], ['Support', LifeBuoy],
-  ['Settings', Settings]
-];
-
-const adminNav = [
-  ['Dashboard', LayoutDashboard], ['Students', Users], ['Faculty', UserCog],
-  ['Courses', GraduationCap], ['Attendance', CalendarDays], ['Marks & Results', BarChart3],
-  ['Fees', CreditCard], ['Notices', Megaphone], ['File Uploads', UploadCloud],
-  ['Reports', FileText], ['Settings', Settings]
-];
-
-function App() {
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('apex-demo-user')) || null; }
-    catch { return null; }
-  });
-  const [dark, setDark] = useState(false);
-
-  const login = (payload) => {
-    setUser(payload);
-    localStorage.setItem('apex-demo-user', JSON.stringify(payload));
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('apex-demo-user');
-  };
-
-  return (
-    <div className={dark ? 'app dark' : 'app'}>
-      {!user ? <Login onLogin={login} /> : <Portal user={user} onLogout={logout} dark={dark} setDark={setDark} />}
-    </div>
-  );
+function CollectionPage({type,title,icon:I,admin,db,updateDB,query}){
+ const cfg=configs[type], items=db[type]||[], [modal,setModal]=useState(false),[editing,setEditing]=useState(null);
+ const filtered=items.filter(i=>Object.values(i).join(' ').toLowerCase().includes(query.toLowerCase()));
+ const save=data=>{if(editing)updateDB(d=>({...d,[type]:d[type].map(x=>x.id===editing.id?{...x,...data}:x)}),`Updated ${title.toLowerCase()}: ${data.title}`);else updateDB(d=>({...d,[type]:[...d[type],{...data,id:uid(),createdAt:dateNow()}]}),`Created ${title.toLowerCase()}: ${data.title}`);setModal(false);setEditing(null)};
+ const remove=i=>{if(confirm(`Delete “${i.title}”?`))updateDB(d=>({...d,[type]:d[type].filter(x=>x.id!==i.id)}),`Deleted ${title.toLowerCase()}: ${i.title}`)};
+ return <><Title title={title} sub={cfg.desc} action={admin?<button className="primary compact" onClick={()=>setModal(true)}><Plus/>Add {title.slice(0,-1)}</button>:null}/><Panel title={`All ${title.toLowerCase()}`}>{filtered.length?<div className="cards">{filtered.map(i=><article className="item-card" key={i.id}><div className="item-icon"><I/></div><div className="item-body"><h4>{i.title}</h4>{cfg.fields.slice(1).map(([k])=><p key={k}>{i[k]||'—'}</p>)}<small>Added {i.createdAt}</small></div>{admin&&<div className="actions"><button onClick={()=>{setEditing(i);setModal(true)}}><Edit3/></button><button className="danger" onClick={()=>remove(i)}><Trash2/></button></div>}</article>)}</div>:<Empty I={I} title={`No ${title.toLowerCase()} yet`} text={admin?`Use “Add ${title.slice(0,-1)}” to create the first entry.`:'The administrator has not published anything here.'}/>}</Panel>{modal&&<GenericModal title={title.slice(0,-1)} fields={cfg.fields} item={editing} close={()=>{setModal(false);setEditing(null)}} save={save}/>}</>
 }
+function GenericModal({title,fields,item,close,save}){const initial=Object.fromEntries(fields.map(([k])=>[k,item?.[k]||'']));const[f,setF]=useState(initial);return <div className="modal-bg"><form className="modal" onSubmit={e=>{e.preventDefault();save(f)}}><div className="modal-head"><div><h3>{item?'Edit':'Add'} {title}</h3><p>Complete the required information below.</p></div><button type="button" onClick={close}><X/></button></div><div className="form-grid">{fields.map(([k,l],idx)=><label key={k} className={k==='body'?'full':''}>{l}{k==='body'?<textarea required value={f[k]} onChange={e=>setF({...f,[k]:e.target.value})}/>:<input required type={k==='due'?'date':k==='url'?'url':'text'} value={f[k]} onChange={e=>setF({...f,[k]:e.target.value})}/>}</label>)}</div><div className="modal-actions"><button type="button" className="secondary" onClick={close}>Cancel</button><button className="primary compact"><Save/>Save</button></div></form></div>}
 
-function Login({ onLogin }) {
-  const [email, setEmail] = useState('student@theapex.com');
-  const [password, setPassword] = useState('Student@2026');
-  const [show, setShow] = useState(false);
-  const [error, setError] = useState('');
+function SettingsPage({db,updateDB}){const reset=()=>{if(confirm('Reset all portal data? The administrator login will remain available.'))updateDB(structuredClone(emptyDB),'Reset portal data')};const exportData=()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='the-apex-backup.json';a.click();URL.revokeObjectURL(a.href)};return <><Title title="Portal Settings" sub="Manage local demo data and migration tools."/><div className="settings-grid"><Panel title="Export data"><p className="setting-copy">Download all users and portal content as a JSON backup.</p><button className="secondary compact" onClick={exportData}><Download/>Export backup</button></Panel><Panel title="Reset demo"><p className="setting-copy">Delete all users, courses, notices, assignments, materials and activity.</p><button className="danger-btn compact" onClick={reset}><RotateCcw/>Reset all data</button></Panel></div><div className="notice warning"><AlertCircle/><span>This testing build stores data in the browser using localStorage. Connect Firebase Authentication and Firestore before collecting real client or student information.</span></div></>}
+function Profile({session}){return <><Title title="My Profile" sub="Your registered portal identity."/><Panel title="Account information"><div className="profile"><div className="avatar large">{session.name.slice(0,2).toUpperCase()}</div><div><h3>{session.name}</h3><p><Mail/> {session.email}</p><p><ShieldCheck/> Registered active user</p></div></div></Panel></>}
 
-  const submit = (e) => {
-    e.preventDefault();
-    const match = DEMO_USERS[email.trim().toLowerCase()];
-    if (!match || match.password !== password) {
-      setError('Invalid demo email or password.');
-      return;
-    }
-    onLogin({ email: email.trim().toLowerCase(), role: match.role, name: match.name });
-  };
-
-  const useDemo = (type) => {
-    const isAdmin = type === 'admin';
-    setEmail(isAdmin ? 'admin@theapex.com' : 'student@theapex.com');
-    setPassword(isAdmin ? 'Apex@2026' : 'Student@2026');
-    setError('');
-  };
-
-  return (
-    <main className="login-page">
-      <section className="login-showcase">
-        <div className="brand big-brand">
-          <div className="brand-mark">A</div>
-          <div><strong>THE APEX</strong><span>EXCELLENCE REDEFINED</span></div>
-        </div>
-        <div className="showcase-copy">
-          <span className="eyebrow">SMART ACADEMIC PORTAL</span>
-          <h1>Everything your institution needs, in one modern workspace.</h1>
-          <p>Manage classes, attendance, results, materials and communication through a secure, responsive experience.</p>
-          <div className="mini-stats">
-            <div><strong>24/7</strong><span>Portal access</span></div>
-            <div><strong>100%</strong><span>Responsive UI</span></div>
-            <div><strong>2 roles</strong><span>Admin & student</span></div>
-          </div>
-        </div>
-        <div className="glass-preview">
-          <div className="preview-head"><span></span><span></span><span></span></div>
-          <div className="preview-grid">
-            <div></div><div></div><div></div>
-            <div className="wide"></div><div className="tall"></div><div className="wide"></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="login-panel">
-        <form className="login-card" onSubmit={submit}>
-          <div className="mobile-brand brand">
-            <div className="brand-mark">A</div><div><strong>THE APEX</strong><span>PORTAL DEMO</span></div>
-          </div>
-          <span className="eyebrow">WELCOME BACK</span>
-          <h2>Sign in to your account</h2>
-          <p className="muted">Use either demo account below.</p>
-
-          <label>Email address</label>
-          <input value={email} onChange={e => setEmail(e.target.value)} type="email" required />
-
-          <label>Password</label>
-          <div className="password-wrap">
-            <input value={password} onChange={e => setPassword(e.target.value)} type={show ? 'text' : 'password'} required />
-            <button type="button" onClick={() => setShow(!show)}>{show ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
-          </div>
-
-          {error && <div className="error">{error}</div>}
-          <button className="primary-btn" type="submit">Sign in <ChevronRight size={18}/></button>
-
-          <div className="demo-buttons">
-            <button type="button" onClick={() => useDemo('student')}>Use student demo</button>
-            <button type="button" onClick={() => useDemo('admin')}>Use admin demo</button>
-          </div>
-
-          <div className="credentials">
-            <p><strong>Student:</strong> student@theapex.com / Student@2026</p>
-            <p><strong>Admin:</strong> admin@theapex.com / Apex@2026</p>
-          </div>
-        </form>
-      </section>
-    </main>
-  );
-}
-
-function Portal({ user, onLogout, dark, setDark }) {
-  const isAdmin = user.role === 'admin';
-  const nav = isAdmin ? adminNav : studentNav;
-  const [active, setActive] = useState('Dashboard');
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="portal-shell">
-      <aside className={open ? 'sidebar open' : 'sidebar'}>
-        <div className="brand">
-          <div className="brand-mark">A</div>
-          <div><strong>THE APEX</strong><span>{isAdmin ? 'ADMIN CONSOLE' : 'STUDENT PORTAL'}</span></div>
-        </div>
-        <button className="mobile-close" onClick={() => setOpen(false)}><X/></button>
-        <nav>
-          {nav.map(([label, Icon]) => (
-            <button key={label} className={active === label ? 'nav-item active' : 'nav-item'} onClick={() => { setActive(label); setOpen(false); }}>
-              <Icon size={19}/><span>{label}</span>
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-footer">
-          <div className="role-card"><ShieldCheck size={20}/><div><strong>{isAdmin ? 'Administrator' : 'Verified Student'}</strong><span>Demo access enabled</span></div></div>
-          <button className="logout-btn" onClick={onLogout}><LogOut size={18}/> Logout</button>
-        </div>
-      </aside>
-
-      {open && <div className="overlay" onClick={() => setOpen(false)} />}
-
-      <main className="main-area">
-        <header className="topbar">
-          <div className="welcome">
-            <button className="menu-btn" onClick={() => setOpen(true)}><Menu/></button>
-            <div><span>Welcome back,</span><strong>{user.name} 👋</strong></div>
-          </div>
-          <div className="top-actions">
-            <div className="search"><Search size={18}/><input placeholder="Search portal..." /></div>
-            <button className="icon-btn"><Bell size={19}/><span className="badge">3</span></button>
-            <button className="icon-btn" onClick={() => setDark(!dark)}>{dark ? <Sun size={19}/> : <Moon size={19}/>}</button>
-            <div className="avatar">{user.name.split(' ').map(x => x[0]).join('').slice(0,2)}</div>
-          </div>
-        </header>
-
-        <section className="content">
-          {active === 'Dashboard'
-            ? (isAdmin ? <AdminDashboard/> : <StudentDashboard/>)
-            : <PlaceholderPage title={active} role={user.role}/>
-          }
-        </section>
-      </main>
-    </div>
-  );
-}
-
-function StatCard({ icon: Icon, title, value, subtitle, tone }) {
-  return <div className="stat-card">
-    <div className={`stat-icon ${tone}`}><Icon size={25}/></div>
-    <div><span>{title}</span><strong>{value}</strong><small>{subtitle}</small></div>
-    <button><ChevronRight size={17}/></button>
-  </div>;
-}
-
-function StudentDashboard() {
-  return <>
-    <div className="page-heading"><div><h1>Student Dashboard</h1><p>Track your learning, attendance and upcoming activities.</p></div><button className="secondary-btn"><Download size={17}/> Download report</button></div>
-    <div className="stats-grid">
-      <StatCard icon={BookOpen} title="Courses Enrolled" value="6" subtitle="Active courses" tone="blue"/>
-      <StatCard icon={CalendarDays} title="Classes Today" value="2" subtitle="Next at 10:00 AM" tone="green"/>
-      <StatCard icon={ClipboardList} title="Pending Assignments" value="3" subtitle="Due this week" tone="amber"/>
-      <StatCard icon={TrendingUp} title="Overall Progress" value="78%" subtitle="Keep it up" tone="purple"/>
-    </div>
-
-    <div className="dashboard-grid">
-      <section className="panel chart-panel">
-        <div className="panel-head"><div><h3>Performance overview</h3><p>Your progress across the current semester</p></div><select><option>This semester</option></select></div>
-        <div className="chart-box">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={performance}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="month"/><YAxis/><Tooltip/><Line type="monotone" dataKey="score" stroke="currentColor" strokeWidth={3} dot={{r:4}}/></LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      <section className="panel upcoming">
-        <div className="panel-head"><div><h3>Upcoming classes</h3><p>Today's schedule</p></div><button>View all</button></div>
-        {[
-          ['Data Structures','10:00 AM – 11:30 AM',Code2,'In 30 min'],
-          ['Operating Systems','12:00 PM – 1:30 PM',Monitor,'2h 30m'],
-          ['Database Management','3:00 PM – 4:30 PM',Database,'5h 30m']
-        ].map(([a,b,I,c]) => <div className="class-row" key={a}><div className="class-icon"><I size={20}/></div><div><strong>{a}</strong><span>{b}</span></div><em>{c}</em></div>)}
-      </section>
-
-      <section className="panel courses-panel">
-        <div className="panel-head"><div><h3>Continue learning</h3><p>Resume your recent courses</p></div><button>View all</button></div>
-        <div className="course-grid">
-          {[
-            ['Data Structures','Prof. A. Sharma','75%',Code2],
-            ['Operating Systems','Prof. R. Kumar','60%',Monitor],
-            ['Database Management','Prof. P. Verma','40%',Database]
-          ].map(([a,b,c,I]) => <div className="course-card" key={a}><div className="course-top"><div className="course-icon"><I/></div><span>{c}</span></div><strong>{a}</strong><small>{b}</small><div className="progress"><i style={{width:c}}/></div></div>)}
-        </div>
-      </section>
-
-      <section className="panel announcements">
-        <div className="panel-head"><div><h3>Announcements</h3><p>Latest updates</p></div><button>View all</button></div>
-        {[
-          ['New study material uploaded','Data Structures – Linked Lists','2h ago'],
-          ['Mid-semester exam schedule','June 15 – June 30','1d ago'],
-          ['Live session on system design','By Prof. Sharma','2d ago']
-        ].map(([a,b,c]) => <div className="notice-row" key={a}><Megaphone size={18}/><div><strong>{a}</strong><span>{b}</span></div><em>{c}</em></div>)}
-      </section>
-    </div>
-  </>;
-}
-
-function AdminDashboard() {
-  return <>
-    <div className="page-heading"><div><h1>Admin Dashboard</h1><p>Manage users, academics, communication and institutional records.</p></div><button className="primary-small"><Plus size={17}/> Add student</button></div>
-    <div className="stats-grid">
-      <StatCard icon={Users} title="Registered Students" value="1,248" subtitle="+38 this month" tone="blue"/>
-      <StatCard icon={UserCog} title="Faculty Members" value="64" subtitle="58 active today" tone="green"/>
-      <StatCard icon={GraduationCap} title="Active Courses" value="28" subtitle="Across 7 departments" tone="purple"/>
-      <StatCard icon={CreditCard} title="Fees Collected" value="₹8.4L" subtitle="92% of target" tone="amber"/>
-    </div>
-
-    <div className="admin-grid">
-      <section className="panel admin-chart">
-        <div className="panel-head"><div><h3>Daily portal activity</h3><p>Unique student logins this week</p></div><select><option>This week</option></select></div>
-        <div className="chart-box">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={adminBars}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name"/><YAxis/><Tooltip/><Bar dataKey="students" fill="currentColor" radius={[8,8,0,0]}/></BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      <section className="panel attendance-panel">
-        <div className="panel-head"><div><h3>Attendance summary</h3><p>Institution-wide today</p></div></div>
-        <div className="pie-wrap"><ResponsiveContainer width="100%" height={220}><PieChart><Pie data={attendanceData} innerRadius={58} outerRadius={86} dataKey="value"><Cell/><Cell/><Cell/></Pie><Tooltip/></PieChart></ResponsiveContainer><div className="pie-center"><strong>86%</strong><span>Present</span></div></div>
-        <div className="legend"><span>● Present 86%</span><span>● Absent 8%</span><span>● Leave 6%</span></div>
-      </section>
-
-      <section className="panel recent-table">
-        <div className="panel-head"><div><h3>Recently registered students</h3><p>Latest account activity</p></div><button>View all</button></div>
-        <div className="table-wrap"><table><thead><tr><th>Student</th><th>Course</th><th>Status</th><th>Joined</th><th></th></tr></thead><tbody>
-          {[
-            ['Riya Sharma','Computer Science','Active','Today'],
-            ['Arjun Mehta','Commerce','Active','Today'],
-            ['Nisha Roy','Science','Pending','Yesterday'],
-            ['Kabir Das','Humanities','Active','Yesterday']
-          ].map(r => <tr key={r[0]}><td><div className="student-cell"><div className="mini-avatar">{r[0].split(' ').map(x=>x[0]).join('')}</div><strong>{r[0]}</strong></div></td><td>{r[1]}</td><td><span className={r[2]==='Active'?'status active-status':'status pending-status'}>{r[2]}</span></td><td>{r[3]}</td><td><MoreVertical size={17}/></td></tr>)}
-        </tbody></table></div>
-      </section>
-
-      <section className="panel quick-actions">
-        <div className="panel-head"><div><h3>Quick actions</h3><p>Common administrative tasks</p></div></div>
-        <div className="action-grid">
-          {[[Users,'Add student'],[Megaphone,'Publish notice'],[UploadCloud,'Upload material'],[BarChart3,'Enter marks'],[CalendarDays,'Manage attendance'],[FileText,'Generate report']].map(([I,t]) => <button key={t}><I size={21}/><span>{t}</span></button>)}
-        </div>
-      </section>
-    </div>
-  </>;
-}
-
-function PlaceholderPage({ title, role }) {
-  const [done, setDone] = useState(false);
-  return <div className="placeholder panel">
-    <div className="placeholder-icon"><CheckCircle2 size={38}/></div>
-    <span className="eyebrow">DEMO MODULE</span>
-    <h1>{title}</h1>
-    <p>This page is included in the navigation and ready to be connected to Firebase. The current version demonstrates the final interface and role-based portal flow.</p>
-    <button className="primary-btn slim" onClick={() => setDone(true)}>{done ? 'Demo action completed' : `Try ${role} action`} <ChevronRight size={17}/></button>
-  </div>;
-}
-
-createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
+createRoot(document.getElementById('root')).render(<App/>);

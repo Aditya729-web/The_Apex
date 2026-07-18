@@ -1,33 +1,23 @@
-# The Apex Portal Demo
-
-A Vercel-ready React + Vite demo with hardcoded role-based authentication.
-
-## Demo credentials
-
-### Student
-- Email: `student@theapex.com`
-- Password: `Student@2026`
-
-### Admin
-- Email: `admin@theapex.com`
-- Password: `Apex@2026`
+# The Apex Portal — Functional Testing Build
 
 ## Run locally
-
 ```bash
 npm install
 npm run dev
 ```
 
 ## Deploy on Vercel
-
-1. Upload this folder to a GitHub repository.
+1. Upload this folder to GitHub.
 2. Import the repository in Vercel.
-3. Framework preset: **Vite**.
-4. Build command: `npm run build`.
-5. Output directory: `dist`.
-6. Deploy.
+3. Framework preset: Vite.
+4. Build command: `npm run build`
+5. Output directory: `dist`
+
+## Default administrator
+- Email: `admin@theapex.com`
+- Password: `Apex@2026`
+
+The portal begins with zero registered users and zero institutional data. The administrator can register users, assign passwords, activate/suspend accounts, edit/delete users, and manage courses, announcements, assignments, and material links.
 
 ## Important
-
-This demo uses hardcoded frontend credentials and is only for UI testing. Do not use it as production authentication. Replace the login check with Firebase Authentication and Firestore role validation before handling real users or sensitive records.
+This testing build uses browser localStorage. Data is separate per browser/device and passwords are not suitable for production storage. Before real use, replace the login and local database functions with Firebase Authentication, Firestore, Firebase Storage, and server-enforced admin custom claims.

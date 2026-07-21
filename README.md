@@ -1,52 +1,74 @@
-# The Apex Chemistry Portal
+# The Apex Chemistry Portal — Production Deployment
 
-Firebase-connected student and admin portal built with React + Vite.
+A React/Vite portal with Firebase Authentication, Cloud Firestore, Firebase Admin server functions, private Supabase Storage, and Vercel deployment.
 
-## Features
-- Separate Student ID login and Administrator email login
-- Admin-created student accounts with automatically generated ID/password
-- Searchable batch assignment and batch settings
-- Batch timing, days and monthly fees visible to assigned students
-- Student filtering by batch
-- Monthly fee reminders and notification panel
-- Interactive fee records with paid/due tracking
-- Admin-only small-file notes upload by batch using Cloud Firestore
-- Student class calendar highlights scheduled batch days
-- Payment button currently shows under-maintenance status
-- Apex Chemistry branding and Coffee To Code footer link
-- Empty Firestore collections show proper zero-data states
+## Fixed in this release
 
-## Initial Firebase setup
-1. In Firebase Authentication, enable **Email/Password**.
-2. Create the single administrator account in Authentication.
-3. Copy its UID.
-4. In Firestore, create collection `admins`, then document `<ADMIN_UID>` with:
-   ```json
-   { "name": "Apex Administrator", "role": "admin" }
-   ```
-5. Publish `firestore.rules` in Firestore Rules.
-6. No Firebase Storage setup is required.
-7. Uploaded note files are stored as Firestore binary data and are limited to 750 KB each.
+- Student creation uses Firebase Admin securely from `/api/admin/create-student`.
+- Student login correctly converts a generated Student ID to its internal Firebase email.
+- PDF/file data uploads directly from the browser to a signed Supabase upload URL, avoiding Vercel's request-body limit.
+- Supabase environment aliases are supported (`SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`).
+- Upload failures now display the actual server/Supabase error instead of only “Request failed”.
+- Notes remain private and are available only to the selected batch.
 
-Do not create a second document in `admins`; the application is designed for one administrator.
+## 1. Firebase setup
 
-## Run locally
+Enable **Email/Password** in Firebase Authentication.
+
+Create a Firebase service-account key from Firebase Console → Project settings → Service accounts → Generate new private key. Add the values from that JSON to Vercel. Do not upload the JSON file to GitHub.
+
+Deploy the included rules:
+
 ```bash
-npm install
+firebase deploy --only firestore:rules
+```
+
+The administrator Firebase Authentication account must have this UID:
+
+```text
+Y7hWLggcPsY36p8mfmBqbMligSD3
+```
+
+## 2. Supabase setup
+
+Create a **private** Storage bucket named exactly:
+
+```text
+apex-files
+```
+
+You may run `supabase-bucket.sql` in the Supabase SQL editor. Rotate any secret that was previously shared, then use only the replacement secret in Vercel.
+
+## 3. Vercel environment variables
+
+Copy every variable from `.env.example` into Vercel → Project → Settings → Environment Variables. Apply them to Production, Preview and Development.
+
+Important details:
+
+- `FIREBASE_PRIVATE_KEY` must include the complete key and escaped `\n` line breaks.
+- Use a Supabase **publishable/anon** key for `VITE_SUPABASE_PUBLISHABLE_KEY`.
+- Use a Supabase **secret/service-role** key only for `SUPABASE_SECRET_KEY`.
+- Never prefix a secret key with `VITE_`.
+
+After adding variables, redeploy without build cache.
+
+## 4. Vercel settings
+
+- Framework preset: Vite
+- Install command: `npm ci --no-audit --no-fund`
+- Build command: `npm run build`
+- Output directory: `dist`
+
+## 5. Local verification
+
+```bash
+npm ci --no-audit --no-fund
+npm run build
 npm run dev
 ```
 
-## Deploy to Vercel
-- Framework: Vite
-- Install command: `npm install`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Node.js: 22.x
+Production build was verified successfully before packaging.
 
-Upload the extracted project files to the repository root. Do not upload the ZIP itself.
+## Student login flow
 
-## Important security note
-Firebase web configuration values are public identifiers by design. Access protection comes from Authentication, Firestore Security Rules. Never store administrator passwords in source code.
-
-## Firestore note-file limitation
-Cloud Firestore documents cannot exceed 1 MiB. To leave room for metadata, this project limits each note file to 750 KB. For larger PDFs or videos, use a dedicated file-storage service later.
+The administrator creates a student and receives a Student ID such as `APEX123456789` plus a generated password. The student selects **Student Login**, enters that Student ID exactly, and uses the generated password. The internal Firebase email is generated automatically and is never required from the student.

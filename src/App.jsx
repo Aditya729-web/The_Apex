@@ -16,6 +16,7 @@ import { auth, db } from './firebase'
 import { createStudentAccount, deletePrivateFile, getPrivateDownloadUrl, uploadPrivateFile } from './api'
 
 const ADMIN_UID = 'Y7hWLggcPsY36p8mfmBqbMligSD3'
+const studentEmail = value => `${String(value || '').trim().toLowerCase()}@students.theapex.local`
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const classNames = (...v) => v.filter(Boolean).join(' ')

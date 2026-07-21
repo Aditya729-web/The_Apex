@@ -1,33 +1,54 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
+import { firstEnv, requireEnv } from './env.js'
 
-function privateKey() {
-  return (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n')
+function normalizePrivateKey(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+    .replace(/\\n/g, '\n')
 }
 
-const app = getApps()[0] || initializeApp({
-  credential: cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: privateKey()
-  })
-})
+function getAdminApp() {
+  if (getApps().length) return getApps()[0]
+  const projectId = requireEnv('Firebase project ID', 'FIREBASE_PROJECT_ID', 'GCLOUD_PROJECT')
+  const clientEmail = requireEnv('Firebase client email', 'FIREBASE_CLIENT_EMAIL')
+  const privateKey = normalizePrivateKey(requireEnv('Firebase private key', 'FIREBASE_PRIVATE_KEY'))
+  return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) })
+}
 
+const app = getAdminApp()
 export const adminAuth = getAuth(app)
 export const adminDb = getFirestore(app)
-export const ADMIN_UID = process.env.ADMIN_UID || 'Y7hWLggcPsY36p8mfmBqbMligSD3'
+export const ADMIN_UID = firstEnv('ADMIN_UID', 'VITE_ADMIN_UID') || 'Y7hWLggcPsY36p8mfmBqbMligSD3'
 
 export async function requireUser(req, { adminOnly = false } = {}) {
   const header = req.headers.authorization || ''
-  if (!header.startsWith('Bearer ')) throw new Error('UNAUTHENTICATED')
-  const decoded = await adminAuth.verifyIdToken(header.slice(7))
-  if (adminOnly && decoded.uid !== ADMIN_UID) throw new Error('FORBIDDEN')
+  if (!header.startsWith('Bearer ')) {
+    const error = new Error('Authentication required. Please sign in again.')
+    error.statusCode = 401
+    throw error
+  }
+  let decoded
+  try {
+    decoded = await adminAuth.verifyIdToken(header.slice(7))
+  } catch {
+    const error = new Error('Your login session is invalid or expired. Please sign in again.')
+    error.statusCode = 401
+    throw error
+  }
+  if (adminOnly && decoded.uid !== ADMIN_UID) {
+    const error = new Error('Administrator access required.')
+    error.statusCode = 403
+    throw error
+  }
   return decoded
 }
 
 export function sendError(res, error) {
+  console.error(error)
+  const status = Number(error?.statusCode) || 400
   const message = error?.message || 'Request failed.'
-  const code = message === 'UNAUTHENTICATED' ? 401 : message === 'FORBIDDEN' ? 403 : 400
-  res.status(code).json({ error: message === 'UNAUTHENTICATED' ? 'Authentication required.' : message === 'FORBIDDEN' ? 'Administrator access required.' : message })
+  res.status(status).json({ error: message })
 }

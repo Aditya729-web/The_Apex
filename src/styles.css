@@ -13,3 +13,5 @@ textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:13px
 .doubt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.doubt-card{border:1px solid var(--line);border-radius:16px;padding:17px;background:#fff}.doubt-card>.panel-head{margin-bottom:8px}.doubt-card>p{color:#526278;line-height:1.55}.answer-box{background:#eef5ff;border-left:4px solid var(--blue);border-radius:12px;padding:13px;margin-top:14px}.answer-box p{margin:5px 0 0;color:#344963}.student-ledger article{min-height:120px}
 @media(max-width:1050px){.earnings-grid{grid-template-columns:repeat(4,1fr)}.month-ledger{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.earnings-grid,.month-ledger,.doubt-grid{grid-template-columns:1fr}}
+
+.credential-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.credential-actions button{justify-content:center}@media(max-width:560px){.credential-actions{grid-template-columns:1fr}}

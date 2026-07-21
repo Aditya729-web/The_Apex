@@ -3,7 +3,7 @@ import {
   Bell, BookOpen, CalendarDays, CheckCircle2, CircleDollarSign, Clock3,
   FileText, GraduationCap, LayoutDashboard, LogOut, Menu, Plus, Search, Send,
   Settings, ShieldCheck, Trash2, Upload, UserPlus, Users, WalletCards, X,
-  AlertCircle, Eye, EyeOff, Download, Pencil, RefreshCw, MessageCircle, Image as ImageIcon, IndianRupee
+  AlertCircle, Eye, EyeOff, Download, Pencil, RefreshCw, MessageCircle, Image as ImageIcon, IndianRupee, Share2, Copy
 } from 'lucide-react'
 import {
   onAuthStateChanged, signInWithEmailAndPassword, signOut
@@ -195,7 +195,19 @@ function StudentsPanel({students,batches,fees,onToast}) {
     <section className="panel">{filtered.length?<div className="table-wrap"><table><thead><tr><th>Student</th><th>Class</th><th>Batch</th><th>Monthly fee</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(s=><tr key={s.id}><td><strong>{s.name}</strong><small>{s.studentId}</small></td><td>{s.className}</td><td>{s.batchName}</td><td>{money(s.monthlyFee)}</td><td><span className={classNames('status',s.status)}>{s.status}</span></td><td><div className="row-actions"><button title="Open annual fee panel" onClick={()=>setLedgerStudent(s)}><WalletCards size={17}/></button><button title="Send fee reminder" onClick={()=>sendReminder(s)}><Send size={17}/></button><button title="Suspend/activate" onClick={()=>toggleStatus(s)}><ShieldCheck size={17}/></button><button className="danger" title="Delete profile" onClick={()=>remove(s)}><Trash2 size={17}/></button></div></td></tr>)}</tbody></table></div>:<EmptyState icon={Users} title="No students found" text={students.length?'No students match this batch or search.':'Create the first student after configuring a batch.'} action={<button className="primary" onClick={()=>setCreateOpen(true)}><Plus size={18}/> Create student</button>}/>}</section>
     <CreateStudent open={createOpen} onClose={()=>setCreateOpen(false)} batches={batches} onCreated={c=>{setCredentials(c);setCreateOpen(false)}} onToast={onToast}/>
     <StudentLedgerModal student={ledgerStudent} fees={fees.filter(f=>f.studentUid===ledgerStudent?.id)} onClose={()=>setLedgerStudent(null)} onToast={onToast}/>
-    <Modal open={!!credentials} title="Account created successfully" onClose={()=>setCredentials(null)}><div className="success-box"><CheckCircle2 size={44}/><h3>{credentials?.name}'s account is ready</h3><p>Share these credentials privately with the student.</p><div className="credential"><span>Student ID</span><strong>{credentials?.studentId}</strong></div><div className="credential"><span>Password</span><strong>{credentials?.password}</strong></div><button className="primary full" onClick={()=>navigator.clipboard.writeText(`Student ID: ${credentials.studentId}\nPassword: ${credentials.password}`)}>Copy credentials</button></div></Modal>
+    <Modal open={!!credentials} title="Account created successfully" onClose={()=>setCredentials(null)}><div className="success-box"><CheckCircle2 size={44}/><h3>{credentials?.name}'s account is ready</h3><p>Share these credentials privately with the student.</p><div className="credential"><span>Student ID</span><strong>{credentials?.studentId}</strong></div><div className="credential"><span>Password</span><strong>{credentials?.password}</strong></div><div className="credential-actions">
+  <button className="secondary" onClick={async()=>{
+    const text=`Welcome to The Apex Chemistry!\n\nYour student account has been created successfully.\n\nWebsite: ${window.location.origin}\nStudent name: ${credentials.name}\nStudent ID: ${credentials.studentId}\nPassword: ${credentials.password}\n\nUse the Student Login option. Please keep these credentials private.\n\nRegards,\nThe Apex Chemistry`
+    try { await navigator.clipboard.writeText(text); onToast('Login details copied successfully.') } catch { onToast('Unable to copy details.','error') }
+  }}><Copy size={18}/> Copy details</button>
+  <button className="primary" onClick={async()=>{
+    const text=`Welcome to The Apex Chemistry!\n\nYour student account has been created successfully.\n\nWebsite: ${window.location.origin}\nStudent name: ${credentials.name}\nStudent ID: ${credentials.studentId}\nPassword: ${credentials.password}\n\nUse the Student Login option. Please keep these credentials private.\n\nRegards,\nThe Apex Chemistry`
+    try {
+      if (navigator.share) await navigator.share({title:'The Apex Chemistry student login',text,url:window.location.origin})
+      else { await navigator.clipboard.writeText(text); onToast('Sharing is unavailable on this browser. Details copied instead.') }
+    } catch (error) { if(error?.name!=='AbortError') onToast('Unable to share the login details.','error') }
+  }}><Share2 size={18}/> Share account</button>
+</div></div></Modal>
   </div>
 }
 

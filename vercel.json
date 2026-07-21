@@ -8,5 +8,6 @@
       "path": "/api/cron/monthly-fee-reminders",
       "schedule": "15 0 * * *"
     }
-  ]
+  ],
+  "installCommand": "npm ci --no-audit --no-fund"
 }

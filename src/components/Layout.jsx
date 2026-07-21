@@ -1,19 +1,19 @@
-import React from 'react'
-import { NavLink } from 'react-router-dom'
-import { LogOut, Menu, X, ShieldCheck, GraduationCap } from 'lucide-react'
-import { signOut } from 'firebase/auth'
-import { auth } from '../lib/firebase'
+import { useState } from 'react'
+import { Brand } from './Brand'
+import { Menu, X, LogOut } from 'lucide-react'
 
-export default function Layout({ title, nav, children, user, mobileOpen, setMobileOpen, portal='student' }) {
-  const isAdmin = portal === 'admin'
-  return <div className={`app-shell ${isAdmin ? 'admin-shell' : 'student-shell'}`}>
-    <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
-      <div className="brand"><img src="/icon-192.png" alt="The Apex Chemistry"/><div><strong>The Apex</strong><span>{isAdmin ? 'Administrator' : 'Student Portal'}</span></div></div>
-      <button className="close-nav" aria-label="Close navigation" onClick={()=>setMobileOpen(false)}><X/></button>
-      <div className="portal-badge">{isAdmin ? <ShieldCheck size={17}/> : <GraduationCap size={17}/>}<span>{isAdmin ? 'Management Console' : 'Learning Space'}</span></div>
-      <nav>{nav.map(({to,label,icon:Icon})=><NavLink key={to} to={to} end={to===(isAdmin?'/admin':'/student')} onClick={()=>setMobileOpen(false)} className={({isActive})=>isActive?'active':''}><Icon size={19}/><span>{label}</span></NavLink>)}</nav>
-      <div className="sidebar-foot"><div className="user-mini"><span>{user?.displayName || (isAdmin ? 'Administrator' : 'Student')}</span><small>{isAdmin ? 'Full management access' : (user?.email || 'Registered student')}</small></div><button onClick={()=>signOut(auth)}><LogOut size={18}/> Sign out</button></div>
+export function PortalLayout({ mode, items, active, onSelect, onLogout, children, userName }) {
+  const [open,setOpen]=useState(false)
+  return <div className={`portal ${mode}`}>
+    <aside className={open ? 'open' : ''}>
+      <div className="side-head"><Brand compact/><button className="icon-btn mobile-only" onClick={()=>setOpen(false)}><X/></button></div>
+      <small>{mode === 'admin' ? 'ADMIN PANEL' : 'STUDENT PANEL'}</small>
+      <nav>{items.map(({key,label,icon:Icon})=><button key={key} className={active===key?'active':''} onClick={()=>{onSelect(key);setOpen(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
+      <button className="logout" onClick={onLogout}><LogOut size={18}/>Logout</button>
     </aside>
-    <main className="main"><header className="topbar"><button className="menu-button" aria-label="Open navigation" onClick={()=>setMobileOpen(true)}><Menu/></button><div className="topbar-title"><small>{isAdmin ? 'ADMINISTRATION • THE APEX CHEMISTRY' : 'MY LEARNING • THE APEX CHEMISTRY'}</small><h1>{title}</h1></div><div className="role-chip">{isAdmin ? <ShieldCheck size={16}/> : <GraduationCap size={16}/>} {isAdmin ? 'Admin' : 'Student'}</div></header><div className="content">{children}</div></main>
+    <main>
+      <header className="portal-top"><button className="icon-btn mobile-only" onClick={()=>setOpen(true)}><Menu/></button><div><b>{mode==='admin'?'Management Console':'Learning Space'}</b><span>{userName || (mode==='admin'?'Administrator':'Student')}</span></div></header>
+      <div className="portal-content">{children}</div>
+    </main>
   </div>
 }

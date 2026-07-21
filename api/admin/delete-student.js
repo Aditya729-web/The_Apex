@@ -1,2 +1,0 @@
-import { body, getAdmin, json, method, requireAdmin } from '../_server.js'
-export default async function handler(req,res){if(!method(req,res))return;try{await requireAdmin(req);const {uid}=body(req);if(!uid)return json(res,400,{error:'Student UID is required'});const {auth,db}=getAdmin();await Promise.allSettled([auth.deleteUser(uid),db.collection('students').doc(uid).delete()]);return json(res,200,{ok:true})}catch(e){return json(res,500,{error:e.message})}}

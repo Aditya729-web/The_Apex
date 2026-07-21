@@ -1,2 +1,0 @@
-import { body, getSupabase, json, method, requireUser } from '../_server.js'
-export default async function handler(req,res){if(!method(req,res))return;try{await requireUser(req);const {path}=body(req);if(!path)return json(res,400,{error:'File path is required'});const {client,bucket}=getSupabase();const {data,error}=await client.storage.from(bucket).createSignedUrl(path,900);if(error)throw error;return json(res,200,{url:data.signedUrl})}catch(e){return json(res,500,{error:e.message})}}

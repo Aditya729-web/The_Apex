@@ -1,19 +1,40 @@
-import React, { useEffect, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
-import { onAuthStateChanged } from 'firebase/auth'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { useEffect, useState } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { supabase, supabaseReady } from './lib/supabase'
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Admin from './pages/Admin'
 import Student from './pages/Student'
-import { auth, db, firebaseEnvError, ADMIN_UID } from './lib/firebase'
+
+function Protected({ role, session, profile, children }) {
+  if (!session) return <Navigate to="/login" replace/>
+  if (!profile) return <div className="center-screen">Loading portal…</div>
+  if (profile.role !== role) return <Navigate to={profile.role==='admin'?'/admin':'/student'} replace/>
+  return children
+}
 
 export default function App(){
-  const [user,setUser]=useState(undefined); const [profile,setProfile]=useState(null)
-  useEffect(()=>{if(!auth){setUser(null);return}return onAuthStateChanged(auth,setUser)},[])
-  useEffect(()=>{if(!user||!db){setProfile(null);return}if(user.uid===ADMIN_UID){setProfile({role:'admin'});return}return onSnapshot(doc(db,'students',user.uid),s=>setProfile(s.exists()?s.data():null),()=>setProfile(null))},[user])
-  if(firebaseEnvError)return <div className="fatal"><img src="/icon-192.png"/><h1>Configuration required</h1><p>{firebaseEnvError}</p><small>Add these variables in Vercel → Project Settings → Environment Variables, then redeploy.</small></div>
-  if(user===undefined)return <div className="splash"><img src="/icon-192.png"/><div className="spinner"/></div>
-  if(!user)return <Routes><Route path="*" element={<Login/>}/></Routes>
-  const isAdmin=user.uid===ADMIN_UID
-  return <Routes><Route path="/admin/*" element={isAdmin?<Admin user={user}/>:<Navigate to="/student" replace/>}/><Route path="/student/*" element={!isAdmin?<Student user={user} profile={profile}/>:<Navigate to="/admin" replace/>}/><Route path="*" element={<Navigate to={isAdmin?'/admin':'/student'} replace/>}/></Routes>
+  const [session,setSession]=useState(null)
+  const [profile,setProfile]=useState(null)
+  const [loading,setLoading]=useState(true)
+  useEffect(()=>{
+    if(!supabaseReady){setLoading(false);return}
+    supabase.auth.getSession().then(({data})=>{setSession(data.session);loadProfile(data.session?.user?.id)})
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>{setSession(s);loadProfile(s?.user?.id)})
+    return()=>subscription.unsubscribe()
+  },[])
+  async function loadProfile(uid){
+    if(!uid){setProfile(null);setLoading(false);return}
+    const {data}=await supabase.from('profiles').select('*').eq('id',uid).maybeSingle()
+    setProfile(data||null);setLoading(false)
+  }
+  async function logout(){await supabase?.auth.signOut();setProfile(null)}
+  if(loading)return <div className="center-screen">Loading The Apex Chemistry…</div>
+  return <Routes>
+    <Route path="/" element={<Landing/>}/>
+    <Route path="/login" element={<Login session={session} profile={profile}/>}/>
+    <Route path="/admin" element={<Protected role="admin" session={session} profile={profile}><Admin profile={profile} logout={logout}/></Protected>}/>
+    <Route path="/student" element={<Protected role="student" session={session} profile={profile}><Student profile={profile} logout={logout}/></Protected>}/>
+    <Route path="*" element={<Navigate to="/" replace/>}/>
+  </Routes>
 }

@@ -1,2 +1,0 @@
-import { body, getSupabase, json, method, requireAdmin } from '../_server.js'
-export default async function handler(req,res){if(!method(req,res))return;try{await requireAdmin(req);const {path}=body(req);const {client,bucket}=getSupabase();const {error}=await client.storage.from(bucket).remove([path]);if(error)throw error;return json(res,200,{ok:true})}catch(e){return json(res,500,{error:e.message})}}

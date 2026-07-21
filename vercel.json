@@ -3,7 +3,10 @@
   "installCommand": "npm ci --no-audit --no-fund",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "functions": {"api/**/*.js": {"runtime": "nodejs24.x"}},
-  "rewrites": [{"source": "/((?!api/).*)", "destination": "/index.html"}],
-  "crons": [{"path": "/api/cron/monthly-fees", "schedule": "0 3 1 * *"}]
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/cron/monthly-fees", "schedule": "0 3 1 * *" }
+  ]
 }

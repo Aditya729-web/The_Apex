@@ -19,7 +19,7 @@ function useCollection(name, sortField='createdAt'){
 export default function Admin({user}){
   const location=useLocation(); const [mobileOpen,setMobileOpen]=useState(false)
   const title=nav.find(n=>n.to===location.pathname)?.label || 'Administration'
-  return <Layout title={title} nav={nav} user={user} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}><Routes><Route index element={<Overview/>}/><Route path="students" element={<Students/>}/><Route path="batches" element={<Batches/>}/><Route path="fees" element={<Fees/>}/><Route path="notes" element={<Notes/>}/><Route path="notifications" element={<Notifications/>}/><Route path="doubts" element={<Doubts/>}/></Routes></Layout>
+  return <Layout portal="admin" title={title} nav={nav} user={user} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}><Routes><Route index element={<Overview/>}/><Route path="students" element={<Students/>}/><Route path="batches" element={<Batches/>}/><Route path="fees" element={<Fees/>}/><Route path="notes" element={<Notes/>}/><Route path="notifications" element={<Notifications/>}/><Route path="doubts" element={<Doubts/>}/></Routes></Layout>
 }
 
 function Overview(){

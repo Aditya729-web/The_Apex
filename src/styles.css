@@ -7,3 +7,37 @@
 .credential-actions{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:.35rem}
 .credential-actions>button:not(.button){border:1px solid rgba(255,255,255,.28);background:transparent;color:inherit;border-radius:10px;padding:.7rem 1rem;font-weight:700;cursor:pointer}
 .credential-card small{display:block;line-height:1.45}
+
+/* Clearly separated administrator and student experiences */
+.portal-badge{display:flex;align-items:center;gap:9px;margin:18px 5px 2px;padding:10px 12px;border-radius:10px;font-size:.75rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.role-chip{margin-left:auto;display:flex;align-items:center;gap:7px;border-radius:999px;padding:8px 12px;font-size:.78rem;font-weight:800}
+.admin-shell{background:#f3f6fa}
+.admin-shell .sidebar{background:linear-gradient(180deg,#06182f,#020d1b)}
+.admin-shell .portal-badge{background:rgba(255,196,0,.12);color:#ffd84c;border:1px solid rgba(255,196,0,.2)}
+.admin-shell .sidebar nav a.active{background:rgba(255,196,0,.12);box-shadow:inset 3px 0 #ffc400;color:#fff}
+.admin-shell .topbar{background:#fff}
+.admin-shell .role-chip{background:#fff3c4;color:#6f5600}
+.admin-shell .hero-card{background:linear-gradient(135deg,#061b35,#0b2b50)}
+.admin-shell .content:before{content:"Administrative controls";display:block;color:#7a8899;font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px 2px}
+.student-shell{background:#f2faf9}
+.student-shell .sidebar{background:linear-gradient(180deg,#073c45,#06262e)}
+.student-shell .brand span{color:#6de3d0}
+.student-shell .portal-badge{background:rgba(109,227,208,.12);color:#8cebdd;border:1px solid rgba(109,227,208,.2)}
+.student-shell .sidebar nav a{color:#c5dddd}
+.student-shell .sidebar nav a:hover,.student-shell .sidebar nav a.active{background:rgba(109,227,208,.12);color:#fff}
+.student-shell .sidebar nav a.active{box-shadow:inset 3px 0 #6de3d0}
+.student-shell .topbar{background:#fbffff;border-bottom-color:#d8ebe8}
+.student-shell .topbar small{color:#177f73}
+.student-shell .topbar h1{color:#073c45}
+.student-shell .role-chip{background:#dff7f2;color:#0b6f64}
+.student-shell .content{max-width:1260px}
+.student-shell .content:before{content:"Your personal learning dashboard";display:block;color:#5e8580;font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px 2px}
+.student-shell .hero-card{background:linear-gradient(135deg,#0b615a,#0c8175);box-shadow:0 16px 35px rgba(9,105,96,.16)}
+.student-shell .hero-card span{color:#bffbf1}
+.student-shell .hero-card p{color:#d8f5f0}
+.student-shell .card{border-color:#d8ebe8;box-shadow:0 5px 18px rgba(8,89,82,.045)}
+.student-shell .card h3,.student-shell .stat strong{color:#073c45}
+.student-shell .button.primary{background:#0b8175;color:#fff}
+.student-shell .calendar .today{background:#0b8175;border-color:#0b8175;color:#fff}
+.student-shell .notice{border-left-color:#0b8175}
+@media(max-width:650px){.role-chip{padding:7px 9px;font-size:0}.role-chip svg{margin:0}.topbar-title{min-width:0}.topbar-title h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}

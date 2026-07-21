@@ -1,5 +1,5 @@
 import { FieldValue } from 'firebase-admin/firestore'
-import { adminDb } from '../_lib/firebaseAdmin.js'
+import { getAdminServices, sendError } from '../_lib/firebaseAdmin.js'
 
 function indiaParts() {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
@@ -7,6 +7,8 @@ function indiaParts() {
 }
 
 export default async function handler(req, res) {
+  try {
+  const { adminDb } = getAdminServices()
   const expected = process.env.CRON_SECRET
   if (!expected || req.headers.authorization !== `Bearer ${expected}`) return res.status(401).json({ error: 'Unauthorized.' })
   const { year, month, day } = indiaParts()
@@ -34,5 +36,8 @@ export default async function handler(req, res) {
     count += 1
   }
   await runRef.set({ completedAt: FieldValue.serverTimestamp(), studentsNotified: count })
-  res.status(200).json({ ok: true, studentsNotified: count })
+  return res.status(200).json({ ok: true, studentsNotified: count })
+  } catch (error) {
+    return sendError(res, error)
+  }
 }

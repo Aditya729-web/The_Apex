@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
-import { adminDb, ADMIN_UID, requireUser, sendError } from '../_lib/firebaseAdmin.js'
-import { BUCKET, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabaseAdmin } from '../_lib/supabaseAdmin.js'
+import { getAdminServices, getAdminUid, requireUser, sendError } from '../_lib/firebaseAdmin.js'
+import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js'
 
 const clean = value => String(value || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120)
 const allowedNoteTypes = new Set([
@@ -15,9 +15,12 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' })
   try {
     const user = await requireUser(req)
+    const { adminDb } = getAdminServices()
+    const { client, bucket, url, publishableKey } = getSupabaseAdmin()
     const { purpose, batchId, fileName, contentType, fileSize } = req.body || {}
     if (!['note', 'doubt'].includes(purpose)) throw new Error('Invalid upload purpose.')
     if (!fileName) throw new Error('Choose a file to upload.')
+    if (Number(fileSize || 0) <= 0) throw new Error('The selected file is empty.')
     if (Number(fileSize || 0) > 50 * 1024 * 1024) throw new Error('The maximum supported file size is 50 MB.')
     if (purpose === 'note' && contentType && !allowedNoteTypes.has(contentType)) {
       throw new Error('Unsupported note format. Upload a PDF, document, presentation, image, ZIP or text file.')
@@ -25,7 +28,7 @@ export default async function handler(req, res) {
 
     let folder
     if (purpose === 'note') {
-      if (user.uid !== ADMIN_UID) {
+      if (user.uid !== getAdminUid()) {
         const error = new Error('Only the administrator can upload notes.')
         error.statusCode = 403
         throw error
@@ -39,17 +42,14 @@ export default async function handler(req, res) {
     }
 
     const path = `${folder}/${Date.now()}-${crypto.randomUUID()}-${clean(fileName)}`
-    const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUploadUrl(path)
-    if (error) throw new Error(`Supabase could not create an upload link: ${error.message}`)
-
-    res.status(200).json({
-      path,
-      token: data.token,
-      supabaseUrl: SUPABASE_URL,
-      publishableKey: SUPABASE_PUBLISHABLE_KEY,
-      bucket: BUCKET
-    })
+    const { data, error } = await client.storage.from(bucket).createSignedUploadUrl(path)
+    if (error) {
+      const e = new Error(`Supabase could not create an upload link: ${error.message}`)
+      e.statusCode = 500
+      throw e
+    }
+    return res.status(200).json({ path, token: data.token, supabaseUrl: url, publishableKey, bucket })
   } catch (error) {
-    sendError(res, error)
+    return sendError(res, error)
   }
 }

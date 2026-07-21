@@ -1,20 +1,19 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
-  Bell, BookOpen, CalendarDays, CheckCircle2, ChevronDown, CircleDollarSign,
-  Clock3, FileText, GraduationCap, LayoutDashboard, LogOut, Menu, Plus,
-  Search, Send, Settings, ShieldCheck, Trash2, Upload, UserPlus, Users,
-  WalletCards, X, AlertCircle, Eye, EyeOff, Download, Pencil, RefreshCw
+  Bell, BookOpen, CalendarDays, CheckCircle2, CircleDollarSign, Clock3,
+  FileText, GraduationCap, LayoutDashboard, LogOut, Menu, Plus, Search, Send,
+  Settings, ShieldCheck, Trash2, Upload, UserPlus, Users, WalletCards, X,
+  AlertCircle, Eye, EyeOff, Download, Pencil, RefreshCw, MessageCircle, Image as ImageIcon, IndianRupee
 } from 'lucide-react'
-import { initializeApp, getApps } from 'firebase/app'
 import {
-  createUserWithEmailAndPassword, getAuth, onAuthStateChanged,
-  signInWithEmailAndPassword, signOut
+  onAuthStateChanged, signInWithEmailAndPassword, signOut
 } from 'firebase/auth'
 import {
-  addDoc, Bytes, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot,
+  addDoc, collection, deleteDoc, doc, getDoc, limit, onSnapshot,
   orderBy, query, serverTimestamp, setDoc, updateDoc, where
 } from 'firebase/firestore'
-import { auth, db, firebaseConfig } from './firebase'
+import { auth, db } from './firebase'
+import { createStudentAccount, deletePrivateFile, getPrivateDownloadUrl, uploadPrivateFile } from './api'
 
 const ADMIN_UID = 'Y7hWLggcPsY36p8mfmBqbMligSD3'
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
@@ -27,9 +26,20 @@ const formatDate = value => {
   return date.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })
 }
 const money = value => `₹${Number(value || 0).toLocaleString('en-IN')}`
-const studentEmail = id => `${id.toLowerCase().replace(/[^a-z0-9]/g,'')}@students.theapex.local`
-const generateStudentId = () => `APEX${String(Date.now()).slice(-7)}`
-const generatePassword = () => `Apex@${Math.floor(1000 + Math.random()*9000)}`
+const currentYear = () => new Date().getFullYear()
+const annualLedger = (fees, amount, year=currentYear()) => {
+  const now = new Date()
+  return MONTH_NAMES.map((name,index)=>{
+    const key=`${year}-${String(index+1).padStart(2,'0')}`
+    const record=fees.find(f=>f.month===key)
+    const future = year>now.getFullYear() || (year===now.getFullYear() && index>now.getMonth())
+    return {name,key,amount:Number(record?.amount ?? amount ?? 0),record,status:record?.status || (future?'upcoming':'due')}
+  })
+}
+const openPrivateFile = async (type,id) => {
+  const url=await getPrivateDownloadUrl({type,id})
+  window.open(url,'_blank','noopener,noreferrer')
+}
 
 function Toast({ toast, clear }) {
   useEffect(() => { if (toast) { const t=setTimeout(clear,3500); return () => clearTimeout(t) } }, [toast, clear])
@@ -104,11 +114,11 @@ function Footer({compact=false}) { return <footer className={compact?'compact-fo
 
 const adminNav=[
   ['dashboard','Dashboard',LayoutDashboard],['students','Students',Users],['batches','Batch Settings',Settings],
-  ['notes','Study Notes',BookOpen],['fees','Fee Records',CircleDollarSign],['notifications','Notifications',Bell]
+  ['notes','Study Notes',BookOpen],['fees','Fee Records',CircleDollarSign],['doubts','Doubts',MessageCircle],['notifications','Notifications',Bell]
 ]
 const studentNav=[
   ['dashboard','Home',LayoutDashboard],['notes','Study Notes',BookOpen],['fees','My Fees',WalletCards],
-  ['notifications','Notifications',Bell],['profile','My Profile',GraduationCap]
+  ['notifications','Notifications',Bell],['doubts','Ask a Doubt',MessageCircle],['profile','My Profile',GraduationCap]
 ]
 
 function Shell({role,profile,active,setActive,onLogout,children,notificationCount=0}) {
@@ -133,46 +143,68 @@ function Stat({icon:Icon,label,value,sub}) { return <div className="stat-card"><
 
 function AdminPortal({profile,onToast,onLogout}) {
   const [active,setActive]=useState('dashboard')
-  const [students,setStudents]=useState([]), [batches,setBatches]=useState([]), [notes,setNotes]=useState([]), [fees,setFees]=useState([]), [notifications,setNotifications]=useState([])
+  const [students,setStudents]=useState([]), [batches,setBatches]=useState([]), [notes,setNotes]=useState([]), [fees,setFees]=useState([]), [notifications,setNotifications]=useState([]), [doubts,setDoubts]=useState([]), [adminNotifications,setAdminNotifications]=useState([])
   useEffect(()=>{
     const unsubs=[
       onSnapshot(query(collection(db,'students'),orderBy('createdAt','desc')),s=>setStudents(s.docs.map(d=>({id:d.id,...d.data()})))),
       onSnapshot(query(collection(db,'batches'),orderBy('name')),s=>setBatches(s.docs.map(d=>({id:d.id,...d.data()})))),
       onSnapshot(query(collection(db,'notes'),orderBy('createdAt','desc')),s=>setNotes(s.docs.map(d=>({id:d.id,...d.data()})))),
       onSnapshot(query(collection(db,'fees'),orderBy('createdAt','desc')),s=>setFees(s.docs.map(d=>({id:d.id,...d.data()})))),
-      onSnapshot(query(collection(db,'notifications'),orderBy('createdAt','desc'),limit(80)),s=>setNotifications(s.docs.map(d=>({id:d.id,...d.data()}))))
+      onSnapshot(query(collection(db,'notifications'),orderBy('createdAt','desc'),limit(120)),s=>setNotifications(s.docs.map(d=>({id:d.id,...d.data()})))),
+      onSnapshot(query(collection(db,'doubts'),orderBy('createdAt','desc')),s=>setDoubts(s.docs.map(d=>({id:d.id,...d.data()})))),
+      onSnapshot(query(collection(db,'adminNotifications'),orderBy('createdAt','desc'),limit(100)),s=>setAdminNotifications(s.docs.map(d=>({id:d.id,...d.data()}))))
     ]; return()=>unsubs.forEach(u=>u())
   },[])
-  const body={dashboard:<AdminDashboard students={students} batches={batches} notes={notes} fees={fees} setActive={setActive}/>,students:<StudentsPanel students={students} batches={batches} onToast={onToast}/>,batches:<BatchPanel batches={batches} onToast={onToast}/>,notes:<AdminNotes notes={notes} batches={batches} onToast={onToast}/>,fees:<AdminFees fees={fees} students={students} onToast={onToast}/>,notifications:<AdminNotifications notifications={notifications} students={students}/>}[active]
-  return <Shell role="admin" profile={profile} active={active} setActive={setActive} onLogout={onLogout}>{body}</Shell>
+  const unreadAdmin=adminNotifications.filter(n=>!n.read).length+doubts.filter(d=>d.status==='pending').length
+  const body={
+    dashboard:<AdminDashboard students={students} batches={batches} notes={notes} fees={fees} setActive={setActive}/>,
+    students:<StudentsPanel students={students} batches={batches} fees={fees} onToast={onToast}/>,
+    batches:<BatchPanel batches={batches} students={students} onToast={onToast}/>,
+    notes:<AdminNotes notes={notes} batches={batches} onToast={onToast}/>,
+    fees:<AdminFees fees={fees} students={students} batches={batches} onToast={onToast}/>,
+    doubts:<AdminDoubts doubts={doubts} onToast={onToast}/>,
+    notifications:<AdminNotifications notifications={notifications} students={students} batches={batches} adminNotifications={adminNotifications} onToast={onToast}/>
+  }[active]
+  return <Shell role="admin" profile={profile} active={active} setActive={setActive} onLogout={onLogout} notificationCount={unreadAdmin}>{body}</Shell>
 }
 
 function AdminDashboard({students,batches,notes,fees,setActive}) {
-  const due=fees.filter(f=>f.status!=='paid').length
-  return <div className="page-stack"><section className="hero-card"><div><span className="eyebrow">ADMINISTRATION</span><h1>Everything starts empty and stays under your control.</h1><p>Create batches first, register students, upload notes and maintain monthly fee records from one place.</p></div><button className="primary" onClick={()=>setActive('students')}><UserPlus size={18}/> Add student</button></section>
-    <div className="stats-grid"><Stat icon={Users} label="Registered students" value={students.length} sub="Across all batches"/><Stat icon={GraduationCap} label="Active batches" value={batches.length} sub="Configured by admin"/><Stat icon={BookOpen} label="Uploaded notes" value={notes.length} sub="Batch-specific resources"/><Stat icon={CircleDollarSign} label="Pending fees" value={due} sub="Monthly records due"/></div>
-    <section className="panel"><div className="panel-head"><div><h3>Getting started</h3><p>Recommended setup order</p></div></div><div className="steps-grid">{[['1','Create a batch','Set class, timing, fee and class days.'],['2','Register students','Assign each student to a batch.'],['3','Upload notes','Choose the batch that should receive them.'],['4','Track fees','Send monthly reminders and mark payments.']].map(x=><div className="step" key={x[0]}><b>{x[0]}</b><strong>{x[1]}</strong><p>{x[2]}</p></div>)}</div></section>
+  const earnings=fees.filter(f=>f.status==='paid').reduce((sum,f)=>sum+Number(f.amount||0),0)
+  const due=fees.filter(f=>f.status!=='paid').reduce((sum,f)=>sum+Number(f.amount||0),0)
+  const monthly=MONTH_NAMES.map((name,i)=>({name,amount:fees.filter(f=>f.status==='paid'&&f.month===`${currentYear()}-${String(i+1).padStart(2,'0')}`).reduce((a,b)=>a+Number(b.amount||0),0)}))
+  return <div className="page-stack"><section className="hero-card"><div><span className="eyebrow">ADMINISTRATION</span><h1>Total earnings: {money(earnings)}</h1><p>Monitor collections, outstanding fees, batches, notes and student activity from one secure dashboard.</p></div><button className="primary" onClick={()=>setActive('fees')}><IndianRupee size={18}/> Open fee records</button></section>
+    <div className="stats-grid"><Stat icon={IndianRupee} label="Total earnings" value={money(earnings)} sub="All paid fee records"/><Stat icon={AlertCircle} label="Outstanding" value={money(due)} sub="Recorded dues"/><Stat icon={Users} label="Registered students" value={students.length} sub="Across all batches"/><Stat icon={GraduationCap} label="Active batches" value={batches.length} sub={`${notes.length} notes uploaded`}/></div>
+    <section className="panel"><div className="panel-head"><div><h3>{currentYear()} earnings by month</h3><p>Calculated from fee records marked as paid</p></div></div><div className="earnings-grid">{monthly.map(m=><div key={m.name}><span>{m.name.slice(0,3)}</span><strong>{money(m.amount)}</strong></div>)}</div></section>
   </div>
 }
 
-function StudentsPanel({students,batches,onToast}) {
-  const [batchFilter,setBatchFilter]=useState('all'),[search,setSearch]=useState(''),[createOpen,setCreateOpen]=useState(false),[credentials,setCredentials]=useState(null)
+function StudentsPanel({students,batches,fees,onToast}) {
+  const [batchFilter,setBatchFilter]=useState('all'),[search,setSearch]=useState(''),[createOpen,setCreateOpen]=useState(false),[credentials,setCredentials]=useState(null),[ledgerStudent,setLedgerStudent]=useState(null)
   const filtered=students.filter(s=>(batchFilter==='all'||s.batchId===batchFilter)&&`${s.name} ${s.studentId}`.toLowerCase().includes(search.toLowerCase()))
   const sendReminder=async student=>{
     try{
       const key=monthKey(), feeId=`${student.id}_${key}`
       await setDoc(doc(db,'fees',feeId),{studentUid:student.id,studentName:student.name,studentId:student.studentId,batchId:student.batchId,month:key,amount:Number(student.monthlyFee||0),status:'due',createdAt:serverTimestamp()},{merge:true})
-      await addDoc(collection(db,'notifications'),{studentUid:student.id,title:'Monthly fee reminder',message:`Your fee of ${money(student.monthlyFee)} for ${MONTH_NAMES[new Date().getMonth()]} is due.`,type:'fee',month:key,read:false,createdAt:serverTimestamp()})
+      await addDoc(collection(db,'notifications'),{studentUid:student.id,title:'Monthly fee reminder',message:`Your fee of ${money(student.monthlyFee)} for ${MONTH_NAMES[new Date().getMonth()]} is due.`,type:'fee',month:key,read:false,sentBy:'admin',createdAt:serverTimestamp()})
       onToast(`Fee reminder sent to ${student.name}.`)
     }catch(e){onToast(e.message,'error')}
   }
   const toggleStatus=async s=>{try{await updateDoc(doc(db,'students',s.id),{status:s.status==='active'?'suspended':'active'});onToast('Student status updated.')}catch(e){onToast(e.message,'error')}}
-  const remove=async s=>{if(!confirm(`Delete ${s.name}'s profile? Their Firebase Authentication account must be removed separately from Firebase Console.`))return;try{await deleteDoc(doc(db,'students',s.id));onToast('Student profile removed.')}catch(e){onToast(e.message,'error')}}
+  const remove=async s=>{if(!confirm(`Delete ${s.name}'s portal profile?`))return;try{await deleteDoc(doc(db,'students',s.id));onToast('Student profile removed. Delete the Authentication user from Firebase Console if required.')}catch(e){onToast(e.message,'error')}}
   return <div className="page-stack"><div className="toolbar"><div className="search-box"><Search size={18}/><input placeholder="Search student or ID" value={search} onChange={e=>setSearch(e.target.value)}/></div><select value={batchFilter} onChange={e=>setBatchFilter(e.target.value)}><option value="all">All batches</option>{batches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select><button className="primary" onClick={()=>setCreateOpen(true)}><UserPlus size={18}/> Add student</button></div>
-    <section className="panel">{filtered.length?<div className="table-wrap"><table><thead><tr><th>Student</th><th>Class</th><th>Batch</th><th>Monthly fee</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(s=><tr key={s.id}><td><strong>{s.name}</strong><small>{s.studentId}</small></td><td>{s.className}</td><td>{s.batchName}</td><td>{money(s.monthlyFee)}</td><td><span className={classNames('status',s.status)}>{s.status}</span></td><td><div className="row-actions"><button title="Send fee reminder" onClick={()=>sendReminder(s)}><Send size={17}/></button><button title="Suspend/activate" onClick={()=>toggleStatus(s)}><ShieldCheck size={17}/></button><button className="danger" title="Delete profile" onClick={()=>remove(s)}><Trash2 size={17}/></button></div></td></tr>)}</tbody></table></div>:<EmptyState icon={Users} title="No students found" text={students.length?'No students match this batch or search.':'Create the first student after configuring a batch.'} action={<button className="primary" onClick={()=>setCreateOpen(true)}><Plus size={18}/> Create student</button>}/>}</section>
+    <section className="panel">{filtered.length?<div className="table-wrap"><table><thead><tr><th>Student</th><th>Class</th><th>Batch</th><th>Monthly fee</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(s=><tr key={s.id}><td><strong>{s.name}</strong><small>{s.studentId}</small></td><td>{s.className}</td><td>{s.batchName}</td><td>{money(s.monthlyFee)}</td><td><span className={classNames('status',s.status)}>{s.status}</span></td><td><div className="row-actions"><button title="Open annual fee panel" onClick={()=>setLedgerStudent(s)}><WalletCards size={17}/></button><button title="Send fee reminder" onClick={()=>sendReminder(s)}><Send size={17}/></button><button title="Suspend/activate" onClick={()=>toggleStatus(s)}><ShieldCheck size={17}/></button><button className="danger" title="Delete profile" onClick={()=>remove(s)}><Trash2 size={17}/></button></div></td></tr>)}</tbody></table></div>:<EmptyState icon={Users} title="No students found" text={students.length?'No students match this batch or search.':'Create the first student after configuring a batch.'} action={<button className="primary" onClick={()=>setCreateOpen(true)}><Plus size={18}/> Create student</button>}/>}</section>
     <CreateStudent open={createOpen} onClose={()=>setCreateOpen(false)} batches={batches} onCreated={c=>{setCredentials(c);setCreateOpen(false)}} onToast={onToast}/>
+    <StudentLedgerModal student={ledgerStudent} fees={fees.filter(f=>f.studentUid===ledgerStudent?.id)} onClose={()=>setLedgerStudent(null)} onToast={onToast}/>
     <Modal open={!!credentials} title="Account created successfully" onClose={()=>setCredentials(null)}><div className="success-box"><CheckCircle2 size={44}/><h3>{credentials?.name}'s account is ready</h3><p>Share these credentials privately with the student.</p><div className="credential"><span>Student ID</span><strong>{credentials?.studentId}</strong></div><div className="credential"><span>Password</span><strong>{credentials?.password}</strong></div><button className="primary full" onClick={()=>navigator.clipboard.writeText(`Student ID: ${credentials.studentId}\nPassword: ${credentials.password}`)}>Copy credentials</button></div></Modal>
   </div>
+}
+
+function StudentLedgerModal({student,fees,onClose,onToast}){
+  const [year,setYear]=useState(currentYear())
+  if(!student)return null
+  const rows=annualLedger(fees,student.monthlyFee,year)
+  const setStatus=async row=>{try{const id=`${student.id}_${row.key}`;const paid=row.status!=='paid';await setDoc(doc(db,'fees',id),{studentUid:student.id,studentName:student.name,studentId:student.studentId,batchId:student.batchId,month:row.key,amount:Number(student.monthlyFee||0),status:paid?'paid':'due',paidAt:paid?serverTimestamp():null,createdAt:row.record?.createdAt||serverTimestamp()},{merge:true});await addDoc(collection(db,'notifications'),{studentUid:student.id,title:'Fee record updated',message:`Your fee for ${row.name} ${year} is marked ${paid?'paid':'due'}.`,type:'fee',read:false,sentBy:'admin',createdAt:serverTimestamp()});onToast('Fee status updated.')}catch(e){onToast(e.message,'error')}}
+  return <Modal open={!!student} title={`${student.name} · Annual fee record`} onClose={onClose} wide><div className="toolbar end"><select value={year} onChange={e=>setYear(Number(e.target.value))}><option>{currentYear()-1}</option><option>{currentYear()}</option><option>{currentYear()+1}</option></select></div><div className="month-ledger">{rows.map(r=><article key={r.key}><div><strong>{r.name}</strong><small>{money(r.amount)}</small></div><span className={classNames('status',r.status)}>{r.status}</span>{r.status!=='upcoming'?<button className="mini-primary" onClick={()=>setStatus(r)}>{r.status==='paid'?'Mark due':'Mark paid'}</button>:<small>Future month</small>}</article>)}</div></Modal>
 }
 
 function CreateStudent({open,onClose,batches,onCreated,onToast}) {
@@ -196,16 +228,8 @@ function CreateStudent({open,onClose,batches,onCreated,onToast}) {
         targetBatch={id:batchRef.id,...created}
       }
       if(!targetBatch) throw new Error('Select an existing batch or create a new batch.')
-      const studentId=generateStudentId(), password=generatePassword(), email=studentEmail(studentId)
-      const secondary=getApps().find(a=>a.name==='StudentCreator')||initializeApp(firebaseConfig,'StudentCreator')
-      const secondaryAuth=getAuth(secondary)
-      const cred=await createUserWithEmailAndPassword(secondaryAuth,email,password)
-      await setDoc(doc(db,'students',cred.user.uid),{
-        name:form.name.trim(),studentId,email,className:form.className.trim(),batchId:targetBatch.id,
-        batchName:targetBatch.name,monthlyFee:Number(form.monthlyFee),status:'active',createdAt:serverTimestamp()
-      })
-      await signOut(secondaryAuth)
-      onCreated({name:form.name.trim(),studentId,password})
+      const created=await createStudentAccount({name:form.name.trim(),className:form.className.trim(),batchId:targetBatch.id,batchName:targetBatch.name,monthlyFee:Number(form.monthlyFee)})
+      onCreated(created)
     }catch(e){onToast(e.message,'error')}finally{setBusy(false)}
   }
   return <Modal open={open} title="Register a new student" onClose={onClose} wide>
@@ -228,11 +252,11 @@ function CreateStudent({open,onClose,batches,onCreated,onToast}) {
   </Modal>
 }
 
-function BatchPanel({batches,onToast}) {
+function BatchPanel({batches,students,onToast}) {
   const [open,setOpen]=useState(false),[editing,setEditing]=useState(null)
   const save=()=>{setEditing(null);setOpen(false)}
   const remove=async b=>{if(!confirm(`Delete batch ${b.name}?`))return;try{await deleteDoc(doc(db,'batches',b.id));onToast('Batch deleted.')}catch(e){onToast(e.message,'error')}}
-  return <div className="page-stack"><div className="toolbar end"><button className="primary" onClick={()=>{setEditing(null);setOpen(true)}}><Plus size={18}/> Create batch</button></div><div className="batch-grid">{batches.map(b=><article className="batch-card" key={b.id}><div className="batch-top"><div className="batch-icon"><GraduationCap/></div><div><h3>{b.name}</h3><p>{b.className}</p></div></div><div className="batch-detail"><Clock3 size={17}/><span>Timing</span><strong>{b.timing}</strong></div><div className="batch-detail"><CalendarDays size={17}/><span>Days</span><strong>{(b.days||[]).map(d=>DAYS[d].slice(0,3)).join(', ')||'Not set'}</strong></div><div className="batch-detail"><CircleDollarSign size={17}/><span>Monthly fee</span><strong>{money(b.monthlyFee)}</strong></div><div className="card-actions"><button className="secondary" onClick={()=>{setEditing(b);setOpen(true)}}><Pencil size={16}/> Edit</button><button className="danger-btn" onClick={()=>remove(b)}><Trash2 size={16}/></button></div></article>)}{!batches.length&&<section className="panel full-grid"><EmptyState icon={GraduationCap} title="No batches configured" text="Create a batch with its class, schedule, days and monthly fee." action={<button className="primary" onClick={()=>setOpen(true)}><Plus size={18}/> Create first batch</button>}/></section>}</div><BatchForm open={open} editing={editing} onClose={()=>setOpen(false)} onSaved={save} onToast={onToast}/></div>
+  return <div className="page-stack"><div className="toolbar end"><button className="primary" onClick={()=>{setEditing(null);setOpen(true)}}><Plus size={18}/> Create batch</button></div><div className="batch-grid">{batches.map(b=>{const count=students.filter(s=>s.batchId===b.id).length;return <article className="batch-card" key={b.id}><div className="batch-top"><div className="batch-icon"><GraduationCap/></div><div><h3>{b.name}</h3><p>{b.className}</p></div></div><div className="batch-detail"><Users size={17}/><span>Students</span><strong>{count}</strong></div><div className="batch-detail"><Clock3 size={17}/><span>Timing</span><strong>{b.timing}</strong></div><div className="batch-detail"><CalendarDays size={17}/><span>Days</span><strong>{(b.days||[]).map(d=>DAYS[d].slice(0,3)).join(', ')||'Not set'}</strong></div><div className="batch-detail"><CircleDollarSign size={17}/><span>Monthly fee</span><strong>{money(b.monthlyFee)}</strong></div><div className="card-actions"><button className="secondary" onClick={()=>{setEditing(b);setOpen(true)}}><Pencil size={16}/> Edit</button><button className="danger-btn" onClick={()=>remove(b)}><Trash2 size={16}/></button></div></article>})}{!batches.length&&<section className="panel full-grid"><EmptyState icon={GraduationCap} title="No batches configured" text="Create a batch with its class, schedule, days and monthly fee." action={<button className="primary" onClick={()=>setOpen(true)}><Plus size={18}/> Create first batch</button>}/></section>}</div><BatchForm open={open} editing={editing} onClose={()=>setOpen(false)} onSaved={save} onToast={onToast}/></div>
 }
 function BatchForm({open,editing,onClose,onSaved,onToast}) {
   const [form,setForm]=useState({name:'',className:'',timing:'',monthlyFee:'',days:[]})
@@ -242,74 +266,69 @@ function BatchForm({open,editing,onClose,onSaved,onToast}) {
   return <Modal open={open} title={editing?'Edit batch settings':'Create a batch'} onClose={onClose}><form className="form-grid" onSubmit={submit}><label>Batch name<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Example: XI Evening"/></label><label>Class<input required value={form.className} onChange={e=>setForm({...form,className:e.target.value})} placeholder="Class 11"/></label><label>Batch timing<input required value={form.timing} onChange={e=>setForm({...form,timing:e.target.value})} placeholder="5:00 PM – 6:30 PM"/></label><label>Monthly fee<input required type="number" min="0" value={form.monthlyFee} onChange={e=>setForm({...form,monthlyFee:e.target.value})}/></label><div className="span-2"><label>Class days</label><div className="day-picker">{DAYS.map((d,i)=><button type="button" className={form.days.includes(i)?'selected':''} onClick={()=>toggle(i)} key={d}>{d.slice(0,3)}</button>)}</div></div><div className="form-actions span-2"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button className="primary">{editing?'Save changes':'Create batch'}</button></div></form></Modal>
 }
 
-const MAX_NOTE_BYTES = 750 * 1024
-const downloadFirestoreNote = note => {
-  try {
-    const bytes = note.fileData?.toUint8Array ? note.fileData.toUint8Array() : new Uint8Array(note.fileData || [])
-    const blob = new Blob([bytes], { type: note.mimeType || 'application/octet-stream' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = note.fileName || 'note'
-    document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  } catch (error) {
-    alert('This note could not be downloaded.')
-  }
-}
-
 function AdminNotes({notes,batches,onToast}) {
   const [open,setOpen]=useState(false),[uploading,setUploading]=useState(false)
   const upload=async e=>{
-    e.preventDefault()
-    const fd=new FormData(e.currentTarget),file=fd.get('file'),batchId=fd.get('batchId'),title=fd.get('title'),batch=batches.find(b=>b.id===batchId)
-    if(!file?.size)return
-    if(file.size>MAX_NOTE_BYTES){onToast('The file is too large. Firestore notes must be 750 KB or smaller.','error');return}
+    e.preventDefault();const fd=new FormData(e.currentTarget),file=fd.get('file'),batchId=fd.get('batchId'),title=fd.get('title'),batch=batches.find(b=>b.id===batchId)
+    if(!file?.size||!batch)return
     setUploading(true)
-    try{
-      const data = Bytes.fromUint8Array(new Uint8Array(await file.arrayBuffer()))
-      await addDoc(collection(db,'notes'),{title:title.trim(),batchId,batchName:batch.name,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size,fileData:data,createdAt:serverTimestamp()})
-      onToast('Note saved in Firestore for the selected batch.')
-      setOpen(false)
-    }catch(e){onToast(e.message,'error')}finally{setUploading(false)}
+    try{const filePath=await uploadPrivateFile({file,purpose:'note',batchId});await addDoc(collection(db,'notes'),{title:title.trim(),batchId,batchName:batch.name,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size,filePath,createdAt:serverTimestamp()});onToast('Note uploaded for the selected batch.');setOpen(false)}catch(e){onToast(e.message,'error')}finally{setUploading(false)}
   }
-  const remove=async n=>{if(confirm('Remove this note from the portal?'))await deleteDoc(doc(db,'notes',n.id))}
-  return <div className="page-stack"><div className="toolbar end"><button className="primary" onClick={()=>setOpen(true)} disabled={!batches.length}><Upload size={18}/> Upload notes</button></div><section className="panel">{notes.length?<div className="resource-grid">{notes.map(n=><article className="resource" key={n.id}><div className="file-icon"><FileText/></div><div><strong>{n.title}</strong><span>{n.batchName}</span><small>{n.fileName} · {Math.ceil((n.fileSize||0)/1024)} KB · {formatDate(n.createdAt)}</small></div><div className="resource-actions"><button onClick={()=>downloadFirestoreNote(n)} title="Download"><Download size={17}/></button><button onClick={()=>remove(n)}><Trash2 size={17}/></button></div></article>)}</div>:<EmptyState icon={BookOpen} title="No notes uploaded" text="Notes are stored in Firestore and visible only to students in the selected batch."/>}</section><Modal open={open} title="Upload a small note to Firestore" onClose={()=>setOpen(false)}><form className="form-grid" onSubmit={upload}><label className="span-2">Note title<input name="title" required placeholder="Example: Chemical Bonding Revision"/></label><label className="span-2">Select batch<select name="batchId" required><option value="">Choose batch</option>{batches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></label><label className="span-2 file-input">Choose file (maximum 750 KB)<input name="file" type="file" required accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.txt"/></label><small className="span-2 muted">Firestore has a 1 MiB document limit, so this portal safely limits each uploaded note to 750 KB.</small><div className="form-actions span-2"><button type="button" className="secondary" onClick={()=>setOpen(false)}>Cancel</button><button className="primary" disabled={uploading}>{uploading?'Saving…':'Save note in Firestore'}</button></div></form></Modal></div>
+  const remove=async n=>{if(!confirm('Delete this note and its file?'))return;try{await deletePrivateFile({type:'note',id:n.id});onToast('Note deleted.')}catch(e){onToast(e.message,'error')}}
+  return <div className="page-stack"><div className="toolbar end"><button className="primary" onClick={()=>setOpen(true)} disabled={!batches.length}><Upload size={18}/> Upload notes</button></div><section className="panel">{notes.length?<div className="resource-grid">{notes.map(n=><article className="resource" key={n.id}><div className="file-icon"><FileText/></div><div><strong>{n.title}</strong><span>{n.batchName}</span><small>{n.fileName} · {(n.fileSize/1048576).toFixed(1)} MB · {formatDate(n.createdAt)}</small></div><div className="resource-actions"><button onClick={()=>openPrivateFile('note',n.id).catch(e=>onToast(e.message,'error'))}><Download size={17}/></button><button onClick={()=>remove(n)}><Trash2 size={17}/></button></div></article>)}</div>:<EmptyState icon={BookOpen} title="No notes uploaded" text="Large notes will be stored privately in Supabase and shared only with the selected batch."/>}</section><Modal open={open} title="Upload notes to Supabase" onClose={()=>setOpen(false)}><form className="form-grid" onSubmit={upload}><label className="span-2">Note title<input name="title" required/></label><label className="span-2">Select batch<select name="batchId" required><option value="">Choose batch</option>{batches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></label><label className="span-2 file-input">Choose file<input name="file" type="file" required accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.zip,.txt"/></label><small className="span-2 muted">The actual file is stored in the private Supabase bucket; Firestore stores only metadata.</small><div className="form-actions span-2"><button type="button" className="secondary" onClick={()=>setOpen(false)}>Cancel</button><button className="primary" disabled={uploading}>{uploading?'Uploading…':'Upload note'}</button></div></form></Modal></div>
 }
 
-function AdminFees({fees,students,onToast}) {
-  const markPaid=async f=>{try{await updateDoc(doc(db,'fees',f.id),{status:'paid',paidAt:serverTimestamp()});await addDoc(collection(db,'notifications'),{studentUid:f.studentUid,title:'Fee payment updated',message:`Your fee record for ${f.month} has been marked as paid.`,type:'fee',read:false,createdAt:serverTimestamp()});onToast('Fee marked as paid.')}catch(e){onToast(e.message,'error')}}
-  return <div className="page-stack"><section className="panel"><div className="panel-head"><div><h3>Interactive fee records</h3><p>Records are created when an administrator sends a fee reminder.</p></div></div>{fees.length?<div className="table-wrap"><table><thead><tr><th>Student</th><th>Month</th><th>Amount</th><th>Status</th><th>Paid on</th><th>Action</th></tr></thead><tbody>{fees.map(f=><tr key={f.id}><td><strong>{f.studentName}</strong><small>{f.studentId}</small></td><td>{f.month}</td><td>{money(f.amount)}</td><td><span className={classNames('status',f.status)}>{f.status}</span></td><td>{formatDate(f.paidAt)}</td><td>{f.status!=='paid'?<button className="mini-primary" onClick={()=>markPaid(f)}>Mark paid</button>:<CheckCircle2 size={19}/>}</td></tr>)}</tbody></table></div>:<EmptyState icon={WalletCards} title="No fee records yet" text="Go to Students and send a monthly fee reminder to create the first record."/>}</section></div>
+function AdminFees({fees,students,batches,onToast}) {
+  const [batchId,setBatchId]=useState('all')
+  const filtered=fees.filter(f=>batchId==='all'||f.batchId===batchId)
+  const paid=filtered.filter(f=>f.status==='paid').reduce((a,b)=>a+Number(b.amount||0),0)
+  const due=filtered.filter(f=>f.status!=='paid').reduce((a,b)=>a+Number(b.amount||0),0)
+  const markPaid=async f=>{try{await updateDoc(doc(db,'fees',f.id),{status:'paid',paidAt:serverTimestamp()});await addDoc(collection(db,'notifications'),{studentUid:f.studentUid,title:'Fee payment updated',message:`Your fee record for ${f.month} has been marked as paid.`,type:'fee',read:false,sentBy:'admin',createdAt:serverTimestamp()});onToast('Fee marked as paid.')}catch(e){onToast(e.message,'error')}}
+  return <div className="page-stack"><div className="stats-grid three"><Stat icon={IndianRupee} label="Collected" value={money(paid)} sub="Selected batch"/><Stat icon={AlertCircle} label="Outstanding" value={money(due)} sub="Selected batch"/><Stat icon={Users} label="Records" value={filtered.length} sub="Monthly fee entries"/></div><section className="panel"><div className="panel-head"><div><h3>Fee records by batch</h3><p>Choose a batch to limit the information shown.</p></div><select value={batchId} onChange={e=>setBatchId(e.target.value)}><option value="all">All batches</option>{batches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></div>{filtered.length?<div className="table-wrap"><table><thead><tr><th>Student</th><th>Batch</th><th>Month</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{filtered.map(f=><tr key={f.id}><td><strong>{f.studentName}</strong><small>{f.studentId}</small></td><td>{students.find(s=>s.id===f.studentUid)?.batchName||'—'}</td><td>{f.month}</td><td>{money(f.amount)}</td><td><span className={classNames('status',f.status)}>{f.status}</span></td><td>{f.status!=='paid'?<button className="mini-primary" onClick={()=>markPaid(f)}>Mark paid</button>:<CheckCircle2 size={19}/>}</td></tr>)}</tbody></table></div>:<EmptyState icon={WalletCards} title="No fee records" text="No records exist for the selected batch."/>}</section></div>
 }
-function AdminNotifications({notifications,students}) { return <div className="page-stack"><section className="panel">{notifications.length?<div className="notification-list">{notifications.map(n=><article key={n.id}><div className="notification-icon"><Bell/></div><div><strong>{n.title}</strong><p>{n.message}</p><small>{students.find(s=>s.id===n.studentUid)?.name||'Student'} · {formatDate(n.createdAt)}</small></div></article>)}</div>:<EmptyState icon={Bell} title="No notifications sent" text="Fee reminders and account updates will appear here."/>}</section></div> }
+
+function AdminNotifications({notifications,students,batches,adminNotifications,onToast}) {
+  const [target,setTarget]=useState('student'),[studentUid,setStudentUid]=useState(''),[batchId,setBatchId]=useState(''),[title,setTitle]=useState(''),[message,setMessage]=useState('')
+  const send=async e=>{e.preventDefault();try{const recipients=target==='student'?students.filter(s=>s.id===studentUid):students.filter(s=>s.batchId===batchId);if(!recipients.length)throw new Error('No recipient selected.');await Promise.all(recipients.map(s=>addDoc(collection(db,'notifications'),{studentUid:s.id,title:title.trim(),message:message.trim(),type:'general',read:false,sentBy:'admin',createdAt:serverTimestamp()})));onToast(`Notification sent to ${recipients.length} student${recipients.length===1?'':'s'}.`);setTitle('');setMessage('')}catch(e){onToast(e.message,'error')}}
+  useEffect(()=>{adminNotifications.filter(n=>!n.read).forEach(n=>updateDoc(doc(db,'adminNotifications',n.id),{read:true}).catch(()=>{}))},[adminNotifications])
+  return <div className="page-stack"><section className="panel"><div className="panel-head"><div><h3>Send a notification</h3><p>Only the administrator can send student messages.</p></div></div><form className="form-grid" onSubmit={send}><label>Recipient type<select value={target} onChange={e=>setTarget(e.target.value)}><option value="student">One student</option><option value="batch">Entire batch</option></select></label>{target==='student'?<label>Student<select required value={studentUid} onChange={e=>setStudentUid(e.target.value)}><option value="">Select student</option>{students.map(s=><option value={s.id} key={s.id}>{s.name} · {s.studentId}</option>)}</select></label>:<label>Batch<select required value={batchId} onChange={e=>setBatchId(e.target.value)}><option value="">Select batch</option>{batches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></label>}<label className="span-2">Title<input required value={title} onChange={e=>setTitle(e.target.value)}/></label><label className="span-2">Message<textarea required value={message} onChange={e=>setMessage(e.target.value)} rows="4"/></label><div className="form-actions span-2"><button className="primary"><Send size={18}/> Send notification</button></div></form></section><section className="panel"><div className="panel-head"><div><h3>Sent messages</h3><p>Student notifications created by admin or automation</p></div></div>{notifications.length?<div className="notification-list">{notifications.map(n=><article key={n.id}><div className="notification-icon"><Bell/></div><div><strong>{n.title}</strong><p>{n.message}</p><small>{students.find(s=>s.id===n.studentUid)?.name||'Student'} · {n.sentBy||'admin'} · {formatDate(n.createdAt)}</small></div></article>)}</div>:<EmptyState icon={Bell} title="No notifications sent" text="Messages and fee reminders will appear here."/>}</section></div>
+}
+
+function AdminDoubts({doubts,onToast}){
+  const [answering,setAnswering]=useState(null),[answer,setAnswer]=useState('')
+  const respond=async e=>{e.preventDefault();try{await updateDoc(doc(db,'doubts',answering.id),{answer:answer.trim(),status:'resolved',answeredAt:serverTimestamp()});await addDoc(collection(db,'notifications'),{studentUid:answering.studentUid,title:'Your doubt has been answered',message:answer.trim(),type:'doubt',read:false,sentBy:'admin',createdAt:serverTimestamp()});onToast('Answer sent to the student.');setAnswering(null);setAnswer('')}catch(e){onToast(e.message,'error')}}
+  return <div className="page-stack"><section className="panel">{doubts.length?<div className="doubt-grid">{doubts.map(d=><article className="doubt-card" key={d.id}><div className="panel-head"><div><h3>{d.studentName}</h3><p>{d.batchName} · {formatDate(d.createdAt)}</p></div><span className={classNames('status',d.status)}>{d.status}</span></div><p>{d.description}</p><div className="card-actions"><button className="secondary" onClick={()=>openPrivateFile('doubt',d.id).catch(e=>onToast(e.message,'error'))}><ImageIcon size={17}/> View question</button><button className="primary" onClick={()=>{setAnswering(d);setAnswer(d.answer||'')}}><MessageCircle size={17}/> {d.answer?'Edit answer':'Answer'}</button></div>{d.answer&&<div className="answer-box"><strong>Answer</strong><p>{d.answer}</p></div>}</article>)}</div>:<EmptyState icon={MessageCircle} title="No doubts received" text="Student questions will appear here with image and description."/>}</section><Modal open={!!answering} title="Answer student doubt" onClose={()=>setAnswering(null)}><form onSubmit={respond}><label>Response<textarea rows="6" required value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="Write a clear response for the student"/></label><div className="form-actions"><button type="button" className="secondary" onClick={()=>setAnswering(null)}>Cancel</button><button className="primary">Send answer</button></div></form></Modal></div>
+}
 
 function StudentPortal({profile,onLogout,onToast}) {
-  const [active,setActive]=useState('dashboard'),[batch,setBatch]=useState(null),[notes,setNotes]=useState([]),[fees,setFees]=useState([]),[notifications,setNotifications]=useState([])
+  const [active,setActive]=useState('dashboard'),[batch,setBatch]=useState(null),[notes,setNotes]=useState([]),[fees,setFees]=useState([]),[notifications,setNotifications]=useState([]),[doubts,setDoubts]=useState([])
   useEffect(()=>{
     const unsubs=[]
     if(profile.batchId){
-      getDoc(doc(db,'batches',profile.batchId)).then(s=>{
-        if(s.exists()) setBatch({id:s.id,...s.data()})
+      getDoc(doc(db,'batches',profile.batchId)).then(snapshot=>{
+        if(snapshot.exists()) setBatch({id:snapshot.id,...snapshot.data()})
       })
       unsubs.push(onSnapshot(
         query(collection(db,'notes'),where('batchId','==',profile.batchId)),
-        s=>setNotes(s.docs.map(d=>({id:d.id,...d.data()})))
+        snapshot=>setNotes(snapshot.docs.map(item=>({id:item.id,...item.data()})))
       ))
     }
     unsubs.push(onSnapshot(
       query(collection(db,'fees'),where('studentUid','==',auth.currentUser.uid)),
-      s=>setFees(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.month||'').localeCompare(a.month||'')))
+      snapshot=>setFees(snapshot.docs.map(item=>({id:item.id,...item.data()})).sort((a,b)=>(b.month||'').localeCompare(a.month||'')))
     ))
     unsubs.push(onSnapshot(
       query(collection(db,'notifications'),where('studentUid','==',auth.currentUser.uid)),
-      s=>setNotifications(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)))
+      snapshot=>setNotifications(snapshot.docs.map(item=>({id:item.id,...item.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)))
     ))
-    return()=>unsubs.forEach(u=>u())
+    unsubs.push(onSnapshot(
+      query(collection(db,'doubts'),where('studentUid','==',auth.currentUser.uid)),
+      snapshot=>setDoubts(snapshot.docs.map(item=>({id:item.id,...item.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)))
+    ))
+    return()=>unsubs.forEach(unsubscribe=>unsubscribe())
   },[profile.batchId])
   const unread=notifications.filter(n=>!n.read).length
-  const body={dashboard:<StudentDashboard profile={profile} batch={batch} notes={notes} fees={fees} notifications={notifications} setActive={setActive}/>,notes:<StudentNotes notes={notes}/>,fees:<StudentFees fees={fees} batch={batch} onToast={onToast}/>,notifications:<StudentNotifications notifications={notifications}/>,profile:<StudentProfile profile={profile} batch={batch}/>} [active]
+  const body={dashboard:<StudentDashboard profile={profile} batch={batch} notes={notes} fees={fees} notifications={notifications} setActive={setActive}/>,notes:<StudentNotes notes={notes} onToast={onToast}/>,fees:<StudentFees fees={fees} batch={batch} onToast={onToast}/>,notifications:<StudentNotifications notifications={notifications}/>,doubts:<StudentDoubts profile={profile} doubts={doubts} onToast={onToast}/>,profile:<StudentProfile profile={profile} batch={batch}/>} [active]
   return <Shell role="student" profile={profile} active={active} setActive={setActive} onLogout={onLogout} notificationCount={unread}>{body}</Shell>
 }
 
@@ -322,9 +341,14 @@ function ClassCalendar({days}) {
   for(let i=0;i<first;i++)cells.push(null);for(let i=1;i<=count;i++)cells.push(i)
   return <section className="panel calendar-panel"><div className="panel-head"><div><h3>Class calendar</h3><p>{MONTH_NAMES[month]} {year}</p></div><CalendarDays/></div><div className="calendar-week">{DAYS.map(d=><span key={d}>{d[0]}</span>)}</div><div className="calendar-grid">{cells.map((d,i)=>{const weekday=d?new Date(year,month,d).getDay():null;return <div key={i} className={classNames(d&&days.includes(weekday)&&'class-day',d===now.getDate()&&'today')}>{d||''}{d&&days.includes(weekday)&&<small>Class</small>}</div>})}</div><div className="calendar-legend"><span/><p>Highlighted dates are scheduled class days.</p></div></section>
 }
-function StudentNotes({notes}) { return <div className="page-stack"><section className="panel">{notes.length?<div className="resource-grid">{notes.map(n=><article className="resource" key={n.id}><div className="file-icon"><FileText/></div><div><strong>{n.title}</strong><span>{n.batchName}</span><small>{n.fileName} · {Math.ceil((n.fileSize||0)/1024)} KB · {formatDate(n.createdAt)}</small></div><button className="download-btn" onClick={()=>downloadFirestoreNote(n)} title="Download"><Download size={18}/></button></article>)}</div>:<EmptyState icon={BookOpen} title="No notes available" text="Your administrator has not uploaded notes for this batch yet."/>}</section></div> }
-function StudentFees({fees,batch,onToast}) { const total=fees.reduce((a,b)=>a+Number(b.amount||0),0),paid=fees.filter(f=>f.status==='paid').reduce((a,b)=>a+Number(b.amount||0),0);return <div className="page-stack"><div className="stats-grid three"><Stat icon={CircleDollarSign} label="Monthly batch fee" value={money(batch?.monthlyFee)} sub="Configured by administrator"/><Stat icon={CheckCircle2} label="Total paid" value={money(paid)} sub="Recorded payments"/><Stat icon={AlertCircle} label="Outstanding" value={money(total-paid)} sub="Pending fee amount"/></div><section className="panel"><div className="panel-head"><div><h3>Fee tracking</h3><p>Your monthly payment history</p></div><button className="primary" onClick={()=>onToast('Online payment gateway is currently under maintenance.','error')}><WalletCards size={18}/> Pay fees</button></div>{fees.length?<div className="fee-cards">{fees.map(f=><article key={f.id}><div><span>{f.month}</span><strong>{money(f.amount)}</strong></div><span className={classNames('status',f.status)}>{f.status}</span><small>{f.status==='paid'?`Paid ${formatDate(f.paidAt)}`:'Payment due'}</small></article>)}</div>:<EmptyState icon={WalletCards} title="No fee records" text="Your monthly fee records will appear after the administrator creates them."/>}</section></div> }
-function StudentNotifications({notifications}) { useEffect(()=>{notifications.filter(n=>!n.read).forEach(n=>updateDoc(doc(db,'notifications',n.id),{read:true}).catch(()=>{}))},[notifications]);return <div className="page-stack"><section className="panel">{notifications.length?<div className="notification-list">{notifications.map(n=><article key={n.id}><div className="notification-icon"><Bell/></div><div><strong>{n.title}</strong><p>{n.message}</p><small>{formatDate(n.createdAt)}</small></div></article>)}</div>:<EmptyState icon={Bell} title="No notifications" text="Important class and fee reminders will appear here."/>}</section></div> }
+function StudentNotes({notes,onToast}) { return <div className="page-stack"><section className="panel">{notes.length?<div className="resource-grid">{notes.map(n=><article className="resource" key={n.id}><div className="file-icon"><FileText/></div><div><strong>{n.title}</strong><span>{n.batchName}</span><small>{n.fileName} · {formatDate(n.createdAt)}</small></div><button className="download-btn" onClick={()=>openPrivateFile('note',n.id).catch(e=>onToast(e.message,'error'))}><Download size={18}/></button></article>)}</div>:<EmptyState icon={BookOpen} title="No notes available" text="Your administrator has not uploaded notes for this batch yet."/>}</section></div> }
+function StudentFees({fees,batch,onToast}) {const rows=annualLedger(fees,batch?.monthlyFee);const paid=rows.filter(r=>r.status==='paid').reduce((a,b)=>a+b.amount,0),due=rows.filter(r=>r.status==='due').reduce((a,b)=>a+b.amount,0);return <div className="page-stack"><div className="stats-grid three"><Stat icon={CircleDollarSign} label="Monthly batch fee" value={money(batch?.monthlyFee)} sub="Configured by administrator"/><Stat icon={CheckCircle2} label={`${currentYear()} paid`} value={money(paid)} sub="Paid months"/><Stat icon={AlertCircle} label="Outstanding" value={money(due)} sub="Past and current months"/></div><section className="panel"><div className="panel-head"><div><h3>{currentYear()} fee tracker</h3><p>Past/current months show paid or due; future months remain upcoming.</p></div><button className="primary" onClick={()=>onToast('Online payment gateway is currently under maintenance.','error')}><WalletCards size={18}/> Pay fees</button></div><div className="month-ledger student-ledger">{rows.map(r=><article key={r.key}><div><strong>{r.name}</strong><small>{money(r.amount)}</small></div><span className={classNames('status',r.status)}>{r.status}</span><small>{r.status==='paid'?`Paid ${formatDate(r.record?.paidAt)}`:r.status==='due'?'Payment pending':'Not yet due'}</small></article>)}</div></section></div> }
+function StudentNotifications({notifications}) { useEffect(()=>{notifications.filter(n=>!n.read).forEach(n=>updateDoc(doc(db,'notifications',n.id),{read:true}).catch(()=>{}))},[notifications]);return <div className="page-stack"><section className="panel">{notifications.length?<div className="notification-list">{notifications.map(n=><article key={n.id}><div className="notification-icon"><Bell/></div><div><strong>{n.title}</strong><p>{n.message}</p><small>{formatDate(n.createdAt)}</small></div></article>)}</div>:<EmptyState icon={Bell} title="No notifications" text="Administrator and automatic fee reminders will appear here."/>}</section></div> }
+function StudentDoubts({profile,doubts,onToast}){
+  const [busy,setBusy]=useState(false)
+  const submit=async e=>{e.preventDefault();const fd=new FormData(e.currentTarget),file=fd.get('file'),description=fd.get('description');setBusy(true);try{const filePath=await uploadPrivateFile({file,purpose:'doubt',batchId:profile.batchId});const ref=await addDoc(collection(db,'doubts'),{studentUid:auth.currentUser.uid,studentName:profile.name,studentId:profile.studentId,batchId:profile.batchId,batchName:profile.batchName,description:description.trim(),filePath,fileName:file.name,mimeType:file.type||'image/jpeg',status:'pending',createdAt:serverTimestamp()});await addDoc(collection(db,'adminNotifications'),{type:'doubt',doubtId:ref.id,studentUid:auth.currentUser.uid,title:'New student doubt',message:`${profile.name} sent a new chemistry question.`,read:false,createdAt:serverTimestamp()});onToast('Your doubt was sent to the administrator.');e.currentTarget.reset()}catch(e){onToast(e.message,'error')}finally{setBusy(false)}}
+  return <div className="page-stack"><section className="panel"><div className="panel-head"><div><h3>Ask a doubt</h3><p>Upload a clear image and describe what you do not understand.</p></div></div><form className="form-grid" onSubmit={submit}><label className="span-2 file-input">Question image<input name="file" type="file" accept="image/png,image/jpeg,image/webp" required/></label><label className="span-2">Description<textarea name="description" rows="5" required placeholder="Mention the chapter, question number and your exact doubt."/></label><div className="form-actions span-2"><button className="primary" disabled={busy}><Send size={18}/>{busy?'Sending…':'Send doubt'}</button></div></form></section><section className="panel"><div className="panel-head"><div><h3>My doubts</h3><p>Answers from the administrator</p></div></div>{doubts.length?<div className="doubt-grid">{doubts.map(d=><article className="doubt-card" key={d.id}><div className="panel-head"><div><strong>{formatDate(d.createdAt)}</strong></div><span className={classNames('status',d.status)}>{d.status}</span></div><p>{d.description}</p><button className="secondary" onClick={()=>openPrivateFile('doubt',d.id).catch(e=>onToast(e.message,'error'))}><ImageIcon size={17}/> View image</button>{d.answer?<div className="answer-box"><strong>Administrator answer</strong><p>{d.answer}</p></div>:<p className="muted">Waiting for an answer.</p>}</article>)}</div>:<EmptyState icon={MessageCircle} title="No doubts submitted" text="Your submitted questions and answers will appear here."/>}</section></div>
+}
 function StudentProfile({profile,batch}) { return <div className="page-stack"><section className="panel profile-card"><div className="large-avatar">{profile.name?.[0]}</div><div><h2>{profile.name}</h2><p>{profile.studentId}</p></div><div className="profile-grid"><div><span>Class</span><strong>{profile.className}</strong></div><div><span>Batch</span><strong>{profile.batchName}</strong></div><div><span>Timing</span><strong>{batch?.timing||'Not set'}</strong></div><div><span>Class days</span><strong>{(batch?.days||[]).map(d=>DAYS[d]).join(', ')||'Not set'}</strong></div><div><span>Monthly fee</span><strong>{money(batch?.monthlyFee||profile.monthlyFee)}</strong></div><div><span>Account status</span><strong className="capitalize">{profile.status}</strong></div></div></section></div> }
 
 export default function App(){

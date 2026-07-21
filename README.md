@@ -28,3 +28,13 @@ Use a newly rotated `SUPABASE_SECRET_KEY`. Never expose it as a `VITE_` variable
 - Output directory: `dist`
 
 The included `vercel.json` configures these values.
+
+## Administrator login fix
+
+The browser must also have this Vercel environment variable:
+
+```env
+VITE_ADMIN_UID=30b55389-8fb1-4112-905b-654e1505bf71
+```
+
+After adding or changing Vercel variables, redeploy the project. Run `supabase/configure-admin.sql` once in the Supabase SQL Editor so the administrator profile exists and has the `admin` role.

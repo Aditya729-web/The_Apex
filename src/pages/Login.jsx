@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth, firebaseEnvError } from '../lib/firebase'
-import { Button, Input } from '../components/Ui'
+import { Button, Input } from '../components/ui'
 
 const studentEmail = (id) => `${id.trim().toLowerCase().replace(/[^a-z0-9]/g,'')}@students.theapexchemistry.local`
 

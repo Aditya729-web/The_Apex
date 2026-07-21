@@ -3,7 +3,7 @@ import { Routes, Route, useLocation } from 'react-router-dom'
 import { collection, addDoc, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { BarChart3, Bell, BookOpen, GraduationCap, IndianRupee, Layers3, MessageCircleQuestion, Plus, Share2, Trash2, Upload } from 'lucide-react'
 import Layout from '../components/Layout'
-import { Badge, Button, Card, Empty, Input, Modal, Select } from '../components/Ui'
+import { Badge, Button, Card, Empty, Input, Modal, Select } from '../components/ui'
 import { db } from '../lib/firebase'
 import { api } from '../lib/api'
 

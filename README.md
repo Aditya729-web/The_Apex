@@ -63,3 +63,6 @@ Open `/api/health` after deployment. It reports whether Firebase Admin and Supab
 ## Branding
 
 The uploaded chemistry tuition artwork is included as the login artwork, favicon, PWA icon and application icon.
+
+## Linux/Vercel filename fix
+The shared UI component is intentionally named `src/components/ui.jsx` and all imports use the exact lowercase path. This avoids case-sensitive Rollup failures on Vercel Linux.

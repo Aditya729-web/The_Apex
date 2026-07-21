@@ -3,7 +3,7 @@ import { Routes, Route, useLocation } from 'react-router-dom'
 import { collection, addDoc, doc, onSnapshot, orderBy, query, serverTimestamp, where } from 'firebase/firestore'
 import { Bell, BookOpen, CalendarDays, IndianRupee, LayoutDashboard, MessageCircleQuestion } from 'lucide-react'
 import Layout from '../components/Layout'
-import { Badge, Button, Card, Empty, Input } from '../components/Ui'
+import { Badge, Button, Card, Empty, Input } from '../components/ui'
 import { db } from '../lib/firebase'
 import { api } from '../lib/api'
 

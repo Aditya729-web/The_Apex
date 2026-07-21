@@ -1,2 +1,2 @@
-import { allow,json,fail,adminServices,supabaseAdmin } from './_server.js';
-export default async function handler(req,res){allow(res,'GET');if(req.method==='OPTIONS')return json(res,204,{});if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});try{adminServices();supabaseAdmin();json(res,200,{ok:true,node:process.version,services:['firebase-admin','supabase']});}catch(e){fail(res,e)}}
+import { getAdmin, getSupabase, json } from './_server.js'
+export default async function handler(_req,res){const result={ok:true,node:process.version,firebase:false,supabase:false};try{getAdmin();result.firebase=true}catch(e){result.ok=false;result.firebaseError=e.message}try{getSupabase();result.supabase=true}catch(e){result.ok=false;result.supabaseError=e.message}return json(res,result.ok?200:500,result)}

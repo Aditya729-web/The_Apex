@@ -1,31 +1,29 @@
-import { getApps, initializeApp, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
-import { createClient } from '@supabase/supabase-js';
+import admin from 'firebase-admin'
+import { createClient } from '@supabase/supabase-js'
 
-export function json(res,status,payload){res.status(status).setHeader('Content-Type','application/json');res.end(JSON.stringify(payload));}
-export function allow(res,methods='POST'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type');res.setHeader('Access-Control-Allow-Methods',methods+', OPTIONS');}
-export function env(name,aliases=[]){for(const key of [name,...aliases]) if(process.env[key]) return process.env[key]; throw new Error(`Missing server environment variable: ${name}`);}
-export function adminServices(){
-  if(!getApps().length){
-    const privateKey=env('FIREBASE_PRIVATE_KEY').replace(/\\n/g,'\n');
-    initializeApp({credential:cert({projectId:env('FIREBASE_PROJECT_ID'),clientEmail:env('FIREBASE_CLIENT_EMAIL'),privateKey})});
-  }
-  return {adminAuth:getAuth(),adminDb:getFirestore()};
+function env(name, aliases=[]){for(const key of [name,...aliases]){if(process.env[key])return process.env[key]}return ''}
+
+export function getAdmin(){
+  if(admin.apps.length)return {auth:admin.auth(),db:admin.firestore()}
+  const projectId=env('FIREBASE_PROJECT_ID')
+  const clientEmail=env('FIREBASE_CLIENT_EMAIL')
+  const privateKey=env('FIREBASE_PRIVATE_KEY').replace(/\\n/g,'\n')
+  if(!projectId||!clientEmail||!privateKey)throw new Error('Missing Firebase Admin environment variables')
+  admin.initializeApp({credential:admin.credential.cert({projectId,clientEmail,privateKey})})
+  return {auth:admin.auth(),db:admin.firestore()}
 }
-export function supabaseAdmin(){
-  return createClient(env('SUPABASE_URL',['VITE_SUPABASE_URL']),env('SUPABASE_SECRET_KEY',['SUPABASE_SERVICE_ROLE_KEY']),{auth:{persistSession:false,autoRefreshToken:false}});
+
+export function getSupabase(){
+  const url=env('SUPABASE_URL')
+  const key=env('SUPABASE_SECRET_KEY',['SUPABASE_SERVICE_ROLE_KEY'])
+  if(!url||!key)throw new Error('Missing Supabase server environment variables')
+  return {client:createClient(url,key,{auth:{persistSession:false}}),url,bucket:env('SUPABASE_BUCKET')||'notes'}
 }
-export async function requireUser(req){
-  const header=req.headers.authorization||'';
-  if(!header.startsWith('Bearer ')) throw Object.assign(new Error('Authentication required.'),{status:401});
-  const {adminAuth}=adminServices();
-  return adminAuth.verifyIdToken(header.slice(7));
-}
-export async function requireAdmin(req){
-  const decoded=await requireUser(req);
-  if(decoded.uid!==env('ADMIN_UID')) throw Object.assign(new Error('Administrator access required.'),{status:403});
-  return decoded;
-}
-export function fail(res,error){console.error(error);json(res,error.status||500,{error:error.message||'Unexpected server error.'});}
-export function cleanFileName(name){return String(name||'file').replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,120);}
+
+export function json(res,status,data){res.status(status).setHeader('Content-Type','application/json');return res.end(JSON.stringify(data))}
+export function method(req,res,allowed='POST'){if(req.method!==allowed){json(res,405,{error:`Use ${allowed}`});return false}return true}
+export async function requireUser(req){const token=(req.headers.authorization||'').replace(/^Bearer\s+/i,'');if(!token)throw new Error('Authentication required');return getAdmin().auth.verifyIdToken(token)}
+export async function requireAdmin(req){const decoded=await requireUser(req);const adminUid=env('ADMIN_UID');if(!adminUid||decoded.uid!==adminUid)throw new Error('Administrator access required');return decoded}
+export function body(req){return typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{})}
+export function randomPassword(){const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$';return Array.from({length:12},()=>chars[Math.floor(Math.random()*chars.length)]).join('')}
+export function studentEmail(id){return `${String(id).toLowerCase().replace(/[^a-z0-9]/g,'')}@students.theapexchemistry.local`}

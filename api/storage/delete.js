@@ -1,2 +1,2 @@
-import { allow,json,fail,requireAdmin,supabaseAdmin,env } from '../_server.js';
-export default async function handler(req,res){allow(res);if(req.method==='OPTIONS')return json(res,204,{});if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});try{await requireAdmin(req);const {path}=req.body||{};if(!path)return json(res,400,{error:'File path required.'});const {error}=await supabaseAdmin().storage.from(env('SUPABASE_BUCKET',['VITE_SUPABASE_BUCKET'])).remove([path]);if(error)throw new Error(error.message);json(res,200,{ok:true});}catch(e){fail(res,e)}}
+import { body, getSupabase, json, method, requireAdmin } from '../_server.js'
+export default async function handler(req,res){if(!method(req,res))return;try{await requireAdmin(req);const {path}=body(req);const {client,bucket}=getSupabase();const {error}=await client.storage.from(bucket).remove([path]);if(error)throw error;return json(res,200,{ok:true})}catch(e){return json(res,500,{error:e.message})}}

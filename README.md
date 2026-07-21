@@ -1,55 +1,65 @@
-# The Apex Chemistry — Production Portal
+# The Apex Chemistry Portal v2
 
-A clean React + Vite portal for Vercel using Firebase Authentication, Firestore, Firebase Admin and private Supabase Storage.
+Production-ready React + Vite portal for Vercel, Firebase Authentication/Firestore, Firebase Admin and private Supabase PDF storage.
 
-## Features
-- Admin and student login
-- Secure server-side student creation and deletion
-- Student ID login with generated internal Firebase email
-- Batch management
-- Twelve-month fee ledger
-- Admin and automated fee reminders
-- Private PDF notes uploaded directly to Supabase signed URLs
-- Student-specific notes, alerts and doubts
-- Doubt image upload and teacher replies
-- Credential copy/share
-- Responsive dashboard
-- Node.js 24 Vercel Functions
+## 1. Install and verify
 
-## 1. Firebase
-Enable Email/Password Authentication. Create the admin account manually and ensure its UID equals `ADMIN_UID`.
-
-Deploy Firestore rules:
-```bash
-npx firebase-tools deploy --only firestore
-```
-
-Create a Firebase service account in Project settings > Service accounts and copy its project ID, client email and private key to Vercel.
-
-## 2. Supabase
-Run `supabase-bucket.sql`. Keep the bucket private. Rotate any secret previously exposed and use the new secret only as a server environment variable.
-
-## 3. Vercel variables
-Copy every variable from `.env.example` into Project Settings > Environment Variables. Apply browser (`VITE_`) variables and server variables to Production, Preview and Development as needed.
-
-For `FIREBASE_PRIVATE_KEY`, paste the complete JSON `private_key`. Vercel accepts the multiline value. The code also supports escaped `\\n` line breaks.
-
-## 4. Deploy
 ```bash
 npm ci
 npm run build
 ```
-Push to GitHub and import the repository into Vercel. Framework: Vite; output: `dist`.
 
-## 5. Verification
-After deployment open `/api/health`. A correct setup returns:
-```json
-{"ok":true,"services":["firebase-admin","supabase"]}
-```
-The endpoint never exposes credentials.
+Node.js 24 is configured in `package.json` and `vercel.json`.
 
-## Notes
-- Vercel Cron calls `/api/cron/monthly-fees` at 02:00 UTC on the 5th day of each month.
-- Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` when `CRON_SECRET` is configured.
-- PDF content does not pass through a Vercel Function; only a short-lived upload token does.
-- The included application accepts PDFs and doubt images up to 20 MB.
+## 2. Firebase setup
+
+1. Enable **Email/Password** in Firebase Authentication.
+2. Create the administrator in Firebase Authentication.
+3. Ensure its UID is `Y7hWLggcPsY36p8mfmBqbMligSD3`, or replace that UID in:
+   - `VITE_ADMIN_UID`
+   - `ADMIN_UID`
+   - `firestore.rules`
+4. Create Firestore and publish `firestore.rules`.
+5. Create a service-account key from Firebase Project Settings → Service accounts.
+
+## 3. Supabase setup
+
+Run `supabase-bucket.sql`. Keep the bucket private.
+
+## 4. Vercel environment variables
+
+Copy every applicable entry from `.env.example` to Vercel → Project → Settings → Environment Variables. Select Production, Preview and Development.
+
+Required browser variables:
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_ADMIN_UID`
+
+Required server variables:
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+- `ADMIN_UID`
+- `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY`
+- `SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_BUCKET`
+- `CRON_SECRET`
+
+For `FIREBASE_PRIVATE_KEY`, paste the complete key including BEGIN/END lines. Vercel supports multiline values.
+
+## 5. Deploy
+
+Push the folder contents—not the outer folder—to GitHub, import the repository in Vercel, add the variables, and deploy. After changing a `VITE_` variable, redeploy because Vite embeds browser variables at build time.
+
+## Health check
+
+Open `/api/health` after deployment. It reports whether Firebase Admin and Supabase are configured without exposing secrets.
+
+## Branding
+
+The uploaded chemistry tuition artwork is included as the login artwork, favicon, PWA icon and application icon.

@@ -1,17 +1,22 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-const required = ['VITE_FIREBASE_API_KEY','VITE_FIREBASE_AUTH_DOMAIN','VITE_FIREBASE_PROJECT_ID','VITE_FIREBASE_APP_ID'];
-const missing = required.filter(k => !import.meta.env[k]);
-export const clientConfigError = missing.length ? `Missing browser variables: ${missing.join(', ')}` : '';
-const app = initializeApp({
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'missing',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'missing',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'missing',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || 'missing'
-});
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const ADMIN_UID = import.meta.env.VITE_ADMIN_UID || 'Y7hWLggcPsY36p8mfmBqbMligSD3';
+import { initializeApp, getApps } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
+
+const required = ['VITE_FIREBASE_API_KEY','VITE_FIREBASE_AUTH_DOMAIN','VITE_FIREBASE_PROJECT_ID','VITE_FIREBASE_APP_ID']
+const missing = required.filter((key) => !import.meta.env[key])
+
+export const firebaseEnvError = missing.length ? `Missing browser variables: ${missing.join(', ')}` : ''
+
+const config = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+}
+
+const app = firebaseEnvError ? null : (getApps()[0] || initializeApp(config))
+export const auth = app ? getAuth(app) : null
+export const db = app ? getFirestore(app) : null
+export const ADMIN_UID = import.meta.env.VITE_ADMIN_UID || ''

@@ -3,11 +3,7 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "crons": [
-    {
-      "path": "/api/cron/monthly-fee-reminders",
-      "schedule": "15 0 * * *"
-    }
-  ],
-  "installCommand": "npm ci --no-audit --no-fund"
+  "functions": { "api/**/*.js": { "maxDuration": 30 } },
+  "crons": [{ "path": "/api/cron/monthly-fees", "schedule": "0 2 5 * *" }],
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
 }

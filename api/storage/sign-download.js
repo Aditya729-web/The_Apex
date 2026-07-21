@@ -1,29 +1,3 @@
-import { getAdminServices, getAdminUid, requireUser, sendError } from '../_lib/firebaseAdmin.js'
-import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js'
-
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' })
-  try {
-    const user = await requireUser(req)
-    const { adminDb } = getAdminServices()
-    const { client, bucket } = getSupabaseAdmin()
-    const { type, id } = req.body || {}
-    const collection = type === 'doubt' ? 'doubts' : type === 'note' ? 'notes' : null
-    if (!collection || !id) throw new Error('Invalid file request.')
-    const snap = await adminDb.collection(collection).doc(id).get()
-    if (!snap.exists) throw new Error('File record not found.')
-    const data = snap.data()
-    if (user.uid !== getAdminUid()) {
-      if (type === 'doubt' && data.studentUid !== user.uid) throw new Error('You cannot open this file.')
-      if (type === 'note') {
-        const student = await adminDb.collection('students').doc(user.uid).get()
-        if (!student.exists || student.data().batchId !== data.batchId) throw new Error('You cannot open this file.')
-      }
-    }
-    const { data: signed, error } = await client.storage.from(bucket).createSignedUrl(data.filePath, 300)
-    if (error) throw new Error(`Supabase download failed: ${error.message}`)
-    return res.status(200).json({ url: signed.signedUrl })
-  } catch (error) {
-    return sendError(res, error)
-  }
-}
+import { allow,json,fail,requireUser,supabaseAdmin,env,adminServices } from '../_server.js';
+export default async function handler(req,res){allow(res);if(req.method==='OPTIONS')return json(res,204,{});if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});try{const decoded=await requireUser(req);const {path,noteId}=req.body||{};if(!path)return json(res,400,{error:'File path required.'});const {adminDb}=adminServices();const adminUid=env('ADMIN_UID');if(decoded.uid!==adminUid){if(!noteId)return json(res,400,{error:'Note ID required.'});const [student,note]=await Promise.all([adminDb.collection('students').doc(decoded.uid).get(),adminDb.collection('notes').doc(noteId).get()]);if(!student.exists||!note.exists||student.data().batchId!==note.data().batchId||note.data().filePath!==path)throw Object.assign(new Error('You cannot access this file.'),{status:403});}
+const sb=supabaseAdmin();const {data,error}=await sb.storage.from(env('SUPABASE_BUCKET',['VITE_SUPABASE_BUCKET'])).createSignedUrl(path,300,{download:false});if(error)throw new Error(`Supabase download signing failed: ${error.message}`);json(res,200,{url:data.signedUrl});}catch(e){fail(res,e)}}

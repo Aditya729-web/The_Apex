@@ -1,0 +1,9 @@
+import { FieldValue } from 'firebase-admin/firestore';
+import { allow,json,fail,adminServices,env } from '../_server.js';
+export default async function handler(req,res){allow(res,'GET');if(req.method==='OPTIONS')return json(res,204,{});if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});try{
+ const expected=`Bearer ${env('CRON_SECRET')}`;if(req.headers.authorization!==expected) return json(res,401,{error:'Invalid cron authorization.'});
+ const {adminDb}=adminServices();const now=new Date();const year=now.getUTCFullYear(),month=now.getUTCMonth()+1,key=`${year}-${String(month).padStart(2,'0')}`;
+ const students=await adminDb.collection('students').where('status','==','active').get();let count=0;let batch=adminDb.batch();let writes=0;
+ for(const doc of students.docs){const s=doc.data();const feeRef=adminDb.collection('fees').doc(`${doc.id}_${key}`);const feeSnap=await feeRef.get();if(!feeSnap.exists){batch.set(feeRef,{studentUid:doc.id,studentId:s.studentId,studentName:s.name,batchId:s.batchId,year,month,monthKey:key,amount:Number(s.monthlyFee||0),status:'due',createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});const n=adminDb.collection('notifications').doc();batch.set(n,{studentUid:doc.id,title:`${key} fee reminder`,message:`Your monthly fee of ₹${Number(s.monthlyFee||0)} is due.`,type:'fee_reminder',read:false,createdAt:FieldValue.serverTimestamp()});count++;writes+=2;if(writes>=400){await batch.commit();batch=adminDb.batch();writes=0;}}}
+ if(writes)await batch.commit();await adminDb.collection('automationRuns').doc(key).set({key,studentsProcessed:students.size,feesCreated:count,ranAt:FieldValue.serverTimestamp()},{merge:true});json(res,200,{ok:true,key,studentsProcessed:students.size,feesCreated:count});
+}catch(e){fail(res,e)}}

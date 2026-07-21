@@ -1,64 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    function isAdmin() { return signedIn() && request.auth.uid == 'Y7hWLggcPsY36p8mfmBqbMligSD3'; }
-    function studentExists() { return signedIn() && exists(/databases/$(database)/documents/students/$(request.auth.uid)); }
-    function studentData() { return get(/databases/$(database)/documents/students/$(request.auth.uid)).data; }
+    function signedIn(){ return request.auth != null; }
+    function admin(){ return signedIn() && request.auth.uid == 'Y7hWLggcPsY36p8mfmBqbMligSD3'; }
+    function student(){ return signedIn() && exists(/databases/$(database)/documents/students/$(request.auth.uid)); }
+    function me(){ return get(/databases/$(database)/documents/students/$(request.auth.uid)).data; }
 
     match /students/{uid} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
-      allow create, update, delete: if isAdmin();
+      allow get: if admin() || (signedIn() && request.auth.uid == uid);
+      allow list, create, update, delete: if admin();
     }
-
-    match /batches/{batchId} {
-      allow read: if isAdmin() || (studentExists() && studentData().batchId == batchId);
-      allow create, update, delete: if isAdmin();
+    match /batches/{id} {
+      allow get: if admin() || (student() && me().batchId == id);
+      allow list: if admin();
+      allow write: if admin();
     }
-
-    match /notes/{noteId} {
-      allow read: if isAdmin() || (studentExists() && resource.data.batchId == studentData().batchId);
-      allow create, update, delete: if isAdmin();
+    match /fees/{id} {
+      allow read: if admin() || (signedIn() && resource.data.studentUid == request.auth.uid);
+      allow write: if admin();
     }
-
-    match /fees/{feeId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.studentUid == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+    match /notes/{id} {
+      allow read: if admin() || (student() && resource.data.batchId == me().batchId);
+      allow write: if admin();
     }
-
-    match /notifications/{notificationId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.studentUid == request.auth.uid);
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
-        signedIn() &&
-        resource.data.studentUid == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
-      );
+    match /notifications/{id} {
+      allow read: if admin() || (signedIn() && resource.data.studentUid == request.auth.uid);
+      allow create, delete: if admin();
+      allow update: if admin() || (signedIn() && resource.data.studentUid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read is bool);
     }
-
-    match /doubts/{doubtId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.studentUid == request.auth.uid);
-      allow create: if studentExists()
-        && request.resource.data.studentUid == request.auth.uid
-        && request.resource.data.batchId == studentData().batchId
-        && request.resource.data.status == 'pending';
-      allow update, delete: if isAdmin();
+    match /doubts/{id} {
+      allow read: if admin() || (signedIn() && resource.data.studentUid == request.auth.uid);
+      allow create: if student() && request.resource.data.studentUid == request.auth.uid && request.resource.data.batchId == me().batchId && request.resource.data.status == 'pending' && request.resource.data.answer == '';
+      allow update, delete: if admin();
     }
-
-    match /adminNotifications/{notificationId} {
-      allow read, update, delete: if isAdmin();
-      allow create: if studentExists()
-        && request.resource.data.studentUid == request.auth.uid
-        && request.resource.data.type == 'doubt';
-    }
-
-    match /automationRuns/{runId} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /automationRuns/{id} { allow read: if admin(); allow write: if false; }
+    match /{document=**} { allow read, write: if false; }
   }
 }

@@ -96,4 +96,4 @@ For admissions, course details, or inquiries, please contact Apex Chemistry thro
 
 
 **"Transforming Chemistry into Confidence."**
->>>>>>> 9ba5fad2bc2dd3ccfcc19cdca62c3c684c8deeb0
+

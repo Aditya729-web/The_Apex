@@ -110,9 +110,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </button>
           <button
             onClick={() => onNavigate('notes')}
-            className="col-span-2 sm:col-span-1 w-full sm:w-auto flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
+            className="w-full sm:w-auto flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
             + Upload Notes
+          </button>
+          <button
+            onClick={() => onNavigate('fees')}
+            className="w-full sm:w-auto flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
+          >
+            Manage Fees
           </button>
         </div>
       </div>

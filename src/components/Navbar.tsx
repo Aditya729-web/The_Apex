@@ -223,7 +223,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer Menu */}
       {role !== 'guest' && mobileMenuOpen && (
-        <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 py-4 space-y-2 shadow-2xl absolute w-full left-0 z-50 overflow-y-auto max-h-[calc(100vh-4rem)]">
+        <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 py-4 pb-24 space-y-2 shadow-2xl absolute w-full left-0 z-50 overflow-y-auto h-[calc(100vh-4rem)]">
           {navItems.map(item => (
             <button
               key={item.id}

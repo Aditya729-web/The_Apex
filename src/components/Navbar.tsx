@@ -228,13 +228,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onTabChange(item.id);
                 setMobileMenuOpen(false);
               }}
-              className={`w-full text-left px-4 py-3 rounded-xl text-base font-bold transition-all ${
+              className={`w-full text-left px-4 py-3 rounded-xl text-base font-bold transition-all flex items-center gap-3 ${
                 activeTab === item.id ? 'bg-amber-400 text-slate-950 shadow-md' : 'text-slate-300 hover:text-white hover:bg-slate-800'
               }`}
             >
               {item.label}
             </button>
           ))}
+          {role !== 'guest' && (
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onLogout();
+              }}
+              className="w-full text-left px-4 py-3 rounded-xl text-base font-bold transition-all flex items-center gap-3 text-red-400 hover:bg-red-500/10 mt-4 border border-red-500/20"
+            >
+              <LogOut className="w-5 h-5" /> Logout
+            </button>
+          )}
         </div>
       )}
     </header>

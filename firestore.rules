@@ -32,6 +32,16 @@ service cloud.firestore {
     }
     
     // Note Files (Chunks) Collection
+    match /fileChunks/{fileId} {
+      allow read: if true;
+      allow write: if true;
+      
+      match /chunks/{chunkId} {
+        allow read: if true;
+        allow write: if true;
+      }
+    }
+
     match /note_files/{fileId} {
       allow read: if true;
       allow write: if isAdmin();

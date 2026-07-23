@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StorageService } from '../../lib/storage';
 import { Note, Batch } from '../../types';
 import { BookOpen, Upload, FileText, Trash2, Plus, Download } from 'lucide-react';
-import { uploadFileChunks } from '../../lib/fileChunks';
+import { uploadFileChunks, downloadFileChunks } from '../../lib/fileChunks';
 
 export const AdminNotes: React.FC = () => {
   const [batches] = useState<Batch[]>(() => StorageService.getBatches());

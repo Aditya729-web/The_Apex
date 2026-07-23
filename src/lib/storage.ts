@@ -1,3 +1,4 @@
+import { syncArrayToFirestore, deleteFromFirestore } from './firebaseSync';
 import {
   Batch,
   Student,
@@ -70,6 +71,7 @@ export class StorageService {
 
   static saveBatches(batches: Batch[]): void {
     setItem(KEYS.BATCHES, batches);
+    syncArrayToFirestore('batches', batches);
   }
 
   static addBatch(batchData: Omit<Batch, 'id' | 'createdAt'>): Batch {
@@ -85,6 +87,7 @@ export class StorageService {
   }
 
   static deleteBatch(id: string): void {
+    deleteFromFirestore('batches', id);
     const batches = this.getBatches().filter(b => b.id !== id);
     this.saveBatches(batches);
   }
@@ -96,6 +99,7 @@ export class StorageService {
 
   static saveStudents(students: Student[]): void {
     setItem(KEYS.STUDENTS, students);
+    syncArrayToFirestore('students', students);
   }
 
   static generateStudentCredentials(): { id: string; pass: string } {
@@ -141,6 +145,7 @@ export class StorageService {
   }
 
   static deleteStudent(id: string): void {
+    deleteFromFirestore('students', id);
     const students = this.getStudents().filter(s => s.id !== id);
     this.saveStudents(students);
   }
@@ -152,6 +157,7 @@ export class StorageService {
 
   static saveFeeRecords(fees: FeeRecord[]): void {
     setItem(KEYS.FEES, fees);
+    syncArrayToFirestore('feeRecords', fees);
   }
 
   static addFeeRecord(feeData: Omit<FeeRecord, 'id'>): FeeRecord {
@@ -188,6 +194,7 @@ export class StorageService {
   }
 
   static deleteFeeRecord(id: string): void {
+    deleteFromFirestore('feeRecords', id);
     const fees = this.getFeeRecords().filter(f => f.id !== id);
     this.saveFeeRecords(fees);
   }
@@ -199,16 +206,17 @@ export class StorageService {
 
   static saveNotes(notes: Note[]): void {
     setItem(KEYS.NOTES, notes);
+    syncArrayToFirestore('notes', notes);
   }
 
-  static addNote(noteData: Omit<Note, 'id' | 'createdAt'>): Note {
+  static addNote(noteData: Omit<Note, 'id' | 'createdAt'> & { id?: string }): Note {
     const notes = this.getNotes();
     const batches = this.getBatches();
     const batch = batches.find(b => b.id === noteData.batchId);
 
     const newNote: Note = {
       ...noteData,
-      id: 'n-' + Date.now().toString(36),
+      id: noteData.id || 'n-' + Date.now().toString(36),
       batchTitle: batch ? batch.title : noteData.batchTitle,
       createdAt: new Date().toISOString().split('T')[0]
     };
@@ -229,6 +237,7 @@ export class StorageService {
   }
 
   static deleteNote(id: string): void {
+    deleteFromFirestore('notes', id);
     const notes = this.getNotes().filter(n => n.id !== id);
     this.saveNotes(notes);
   }
@@ -240,6 +249,7 @@ export class StorageService {
 
   static saveDoubts(doubts: Doubt[]): void {
     setItem(KEYS.DOUBTS, doubts);
+    syncArrayToFirestore('doubts', doubts);
   }
 
   static addDoubt(doubtData: Omit<Doubt, 'id' | 'status' | 'createdAt'>): Doubt {
@@ -308,6 +318,7 @@ export class StorageService {
   }
 
   static deleteDoubt(id: string): void {
+    deleteFromFirestore('doubts', id);
     const doubts = this.getDoubts().filter(d => d.id !== id);
     this.saveDoubts(doubts);
   }
@@ -319,6 +330,7 @@ export class StorageService {
 
   static saveTests(tests: Test[]): void {
     setItem(KEYS.TESTS, tests);
+    syncArrayToFirestore('tests', tests);
   }
 
   // Automatic Rank Calculation Helper
@@ -377,6 +389,7 @@ export class StorageService {
 
   static saveNotifications(notifs: NotificationItem[]): void {
     setItem(KEYS.NOTIFICATIONS, notifs);
+    syncArrayToFirestore('notifications', notifs);
   }
 
   static addNotification(notif: Omit<NotificationItem, 'id'>): NotificationItem {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StorageService } from '../../lib/storage';
 import { Note, Batch } from '../../types';
 import { BookOpen, Upload, FileText, Trash2, Plus, Download } from 'lucide-react';
+import { uploadFileChunks } from '../../lib/fileChunks';
 
 export const AdminNotes: React.FC = () => {
   const [batches] = useState<Batch[]>(() => StorageService.getBatches());
@@ -15,6 +16,8 @@ export const AdminNotes: React.FC = () => {
   const [description, setDescription] = useState('');
   const [fileName, setFileName] = useState('');
   const [fileUrl, setFileUrl] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const refreshNotes = () => {
     setNotes(StorageService.getNotes());
@@ -24,33 +27,55 @@ export const AdminNotes: React.FC = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setFileName(file.name);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFileUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      setSelectedFile(file);
     }
   };
 
-  const handleNoteSubmit = (e: React.FormEvent) => {
+  const handleNoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !selectedBatchId) return;
 
-    StorageService.addNote({
-      title,
-      subject,
-      batchId: selectedBatchId,
-      fileName: fileName || `${title.replace(/\s+/g, '_')}_Notes.pdf`,
-      fileSize: '3.4 MB',
-      fileUrl: fileUrl,
-      description
-    });
+    setIsUploading(true);
 
-    refreshNotes();
-    setTitle('');
-    setDescription('');
-    setFileName('');
-    setFileUrl('');
+    try {
+      let finalFileUrl = '';
+      const newNoteId = 'n-' + Date.now().toString(36);
+
+      if (selectedFile) {
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(selectedFile);
+        });
+        
+        await uploadFileChunks(newNoteId, base64Data);
+        finalFileUrl = `firestore://${newNoteId}`;
+      }
+
+      StorageService.addNote({
+        id: newNoteId,
+        title,
+        subject,
+        batchId: selectedBatchId,
+        fileName: fileName || `${title.replace(/\s+/g, '_')}_Notes.pdf`,
+        fileSize: selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB` : 'Unknown Size',
+        fileUrl: finalFileUrl,
+        description
+      });
+
+      refreshNotes();
+      setTitle('');
+      setDescription('');
+      setFileName('');
+      setFileUrl('');
+      setSelectedFile(null);
+    } catch (err) {
+      console.error("Error uploading file:", err);
+      alert("Failed to upload file. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleDeleteNote = (id: string) => {
@@ -58,9 +83,32 @@ export const AdminNotes: React.FC = () => {
     refreshNotes();
   };
 
-  const handleDownloadNote = (n: Note) => {
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadNote = async (n: Note) => {
     if (n.fileUrl) {
-      if (n.fileUrl.startsWith('data:')) {
+      if (n.fileUrl.startsWith('firestore://')) {
+        try {
+          setDownloadingId(n.id);
+          const fileId = n.fileUrl.replace('firestore://', '');
+          const base64Data = await downloadFileChunks(fileId);
+          
+          if (base64Data) {
+            const link = document.createElement('a');
+            link.href = base64Data;
+            link.download = n.fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+          }
+        } catch (err) {
+          console.error("Error downloading chunks:", err);
+          alert("Failed to download file chunks.");
+        } finally {
+          setDownloadingId(null);
+        }
+      } else if (n.fileUrl.startsWith('data:')) {
         const link = document.createElement('a');
         link.href = n.fileUrl;
         link.download = n.fileName;
@@ -195,9 +243,10 @@ Apex Chemistry Tuition
 
             <button
               type="submit"
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all"
+              disabled={isUploading}
+              className={`w-full py-3 text-white font-bold text-sm rounded-xl shadow-lg transition-all ${isUploading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
             >
-              Publish Notes to Batch
+              {isUploading ? 'Uploading...' : 'Publish Notes to Batch'}
             </button>
           </form>
         </div>
@@ -252,10 +301,11 @@ Apex Chemistry Tuition
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleDownloadNote(n)}
-                      className="p-2 text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                      disabled={downloadingId === n.id}
+                      className={`p-2 rounded-lg transition-colors ${downloadingId === n.id ? 'text-slate-400 cursor-not-allowed' : 'text-slate-600 hover:text-amber-600 hover:bg-amber-50'}`}
                       title="Download Note"
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className={`w-4 h-4 ${downloadingId === n.id ? 'animate-pulse' : ''}`} />
                     </button>
                     <button
                       onClick={() => handleDeleteNote(n.id)}

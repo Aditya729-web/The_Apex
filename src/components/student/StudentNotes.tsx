@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Student, Note } from '../../types';
 import { StorageService } from '../../lib/storage';
 import { BookOpen, Download, FileText, Search } from 'lucide-react';
+import { downloadFileChunks } from '../../lib/fileChunks';
 
 interface StudentNotesProps {
   student: Student;
@@ -10,14 +11,36 @@ interface StudentNotesProps {
 export const StudentNotes: React.FC<StudentNotesProps> = ({ student }) => {
   const notes = StorageService.getNotes().filter(n => n.batchId === student.batchId);
   const [searchTerm, setSearchTerm] = useState('');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const filtered = notes.filter(
     n => n.title.toLowerCase().includes(searchTerm.toLowerCase()) || n.subject.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleDownloadNote = (n: Note) => {
+  const handleDownloadNote = async (n: Note) => {
     if (n.fileUrl) {
-      if (n.fileUrl.startsWith('data:')) {
+      if (n.fileUrl.startsWith('firestore://')) {
+        try {
+          setDownloadingId(n.id);
+          const fileId = n.fileUrl.replace('firestore://', '');
+          const base64Data = await downloadFileChunks(fileId);
+          
+          if (base64Data) {
+            const link = document.createElement('a');
+            link.href = base64Data;
+            link.download = n.fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+          }
+        } catch (err) {
+          console.error("Error downloading chunks:", err);
+          alert("Failed to download file chunks.");
+        } finally {
+          setDownloadingId(null);
+        }
+      } else if (n.fileUrl.startsWith('data:')) {
         const link = document.createElement('a');
         link.href = n.fileUrl;
         link.download = n.fileName;
@@ -105,9 +128,10 @@ Apex Chemistry Tuition
                 <span className="text-slate-400 font-mono text-[11px]">{n.fileName} ({n.fileSize})</span>
                 <button
                   onClick={() => handleDownloadNote(n)}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
+                  disabled={downloadingId === n.id}
+                  className={`px-3 py-1.5 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors ${downloadingId === n.id ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                 >
-                  <Download className="w-3.5 h-3.5" /> Download Note
+                  <Download className="w-3.5 h-3.5" /> {downloadingId === n.id ? 'Downloading...' : 'Download Note'}
                 </button>
               </div>
             </div>

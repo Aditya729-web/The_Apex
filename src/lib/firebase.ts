@@ -18,6 +18,13 @@ import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
+} from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase App
@@ -28,6 +35,9 @@ export const db = (firebaseConfig as any).firestoreDatabaseId ? getFirestore(app
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
+
+// Initialize Firebase Storage
+export const storage = getStorage(app);
 
 export {
   collection,
@@ -42,6 +52,10 @@ export {
   onSnapshot,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
 };
 

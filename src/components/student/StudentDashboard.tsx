@@ -160,7 +160,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             <span className="text-xs font-bold text-slate-500">{currentMonthName}</span>
           </div>
 
-          <div className="flex items-center gap-6 py-2">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 py-2">
             {/* Progress Gauge */}
             <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -189,7 +189,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               </div>
             </div>
 
-            <div className="space-y-2 flex-1 text-xs">
+            <div className="space-y-2 flex-1 w-full text-xs">
               <div className="flex justify-between items-center p-2 bg-emerald-50 rounded-xl border border-emerald-100">
                 <span className="font-semibold text-emerald-900">Paid Fees:</span>
                 <span className="font-extrabold text-emerald-700">₹{paidFeesAmount.toLocaleString()}</span>

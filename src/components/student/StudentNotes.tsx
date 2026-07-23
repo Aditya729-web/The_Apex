@@ -35,8 +35,7 @@ export const StudentNotes: React.FC<StudentNotesProps> = ({ student }) => {
             return;
           }
         } catch (err) {
-          console.error("Error downloading chunks:", err);
-          alert("Failed to download file chunks.");
+          console.warn("Error downloading file chunks, using note text fallback:", err);
         } finally {
           setDownloadingId(null);
         }

@@ -26,6 +26,12 @@ export const AdminNotes: React.FC = () => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      const MAX_SIZE_MB = 20;
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        alert(`File size exceeds the ${MAX_SIZE_MB}MB limit. Please upload a smaller file.`);
+        e.target.value = '';
+        return;
+      }
       setFileName(file.name);
       setSelectedFile(file);
     }
@@ -103,8 +109,7 @@ export const AdminNotes: React.FC = () => {
             return;
           }
         } catch (err) {
-          console.error("Error downloading chunks:", err);
-          alert("Failed to download file chunks.");
+          console.warn("Error downloading file chunks, using note text fallback:", err);
         } finally {
           setDownloadingId(null);
         }
@@ -236,7 +241,7 @@ Apex Chemistry Tuition
                   <p className="text-xs font-bold text-slate-800">
                     {fileName ? fileName : 'Click or drop PDF / image note file here'}
                   </p>
-                  <p className="text-[10px] text-slate-400">PDF, JPG, PNG up to 25MB</p>
+                  <p className="text-[10px] text-slate-500 font-medium">PDF, JPG, PNG up to 20MB (IndexedDB cached)</p>
                 </div>
               </div>
             </div>

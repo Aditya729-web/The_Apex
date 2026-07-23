@@ -4,12 +4,15 @@ import App from './App.tsx';
 import { loadInitialDataFromFirestore } from './lib/firebaseSync';
 import './index.css';
 
+// Render App immediately so screen is never blank
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+
+// Load data in background
 loadInitialDataFromFirestore().catch(err => {
-  console.error("Failed to load initial data from Firestore:", err);
-}).finally(() => {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
+  console.warn("Background load from Firestore skipped or delayed:", err);
 });
+

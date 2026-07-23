@@ -34,17 +34,29 @@ export async function loadInitialDataFromFirestore() {
   ];
 
   let hasData = false;
-  for (const { key, col } of collectionsToLoad) {
-    try {
-      const snap = await getDocs(collection(db, col));
-      if (!snap.empty) {
-        hasData = true;
-        const data = snap.docs.map(d => d.data());
-        localStorage.setItem(`apex_${key}_v2`, JSON.stringify(data));
+  
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Firestore load timeout')), 3000)
+  );
+
+  try {
+    const fetchPromises = collectionsToLoad.map(async ({ key, col }) => {
+      try {
+        const snap = await getDocs(collection(db, col));
+        if (!snap.empty) {
+          hasData = true;
+          const data = snap.docs.map(d => d.data());
+          localStorage.setItem(`apex_${key}_v2`, JSON.stringify(data));
+        }
+      } catch (err) {
+        // Ignore single collection fetch fail
       }
-    } catch (err) {
-      console.warn(`Could not load ${col} from Firestore`, err);
-    }
+    });
+
+    await Promise.race([Promise.allSettled(fetchPromises), timeoutPromise]);
+  } catch (err) {
+    console.debug("Firestore initial sync notice:", err);
   }
+
   return hasData;
 }

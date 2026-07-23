@@ -22,10 +22,33 @@ import { StorageService } from './lib/storage';
 import { runMonthlyFeeReminderTask } from './lib/scheduledTasks';
 
 export default function App() {
-  const [role, setRole] = useState<Role>('guest');
-  const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('home');
+  const [role, setRole] = useState<Role>(() => {
+    return (localStorage.getItem('apex_session_role') as Role) || 'guest';
+  });
+  const [currentStudent, setCurrentStudent] = useState<Student | null>(() => {
+    try {
+      const saved = localStorage.getItem('apex_session_student');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const savedRole = localStorage.getItem('apex_session_role');
+    const savedTab = localStorage.getItem('apex_session_tab');
+    if (savedRole && savedRole !== 'guest') {
+      return savedTab || 'dashboard';
+    }
+    return 'home';
+  });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // Sync tab changes to storage
+  useEffect(() => {
+    if (role !== 'guest') {
+      localStorage.setItem('apex_session_tab', activeTab);
+    }
+  }, [activeTab, role]);
 
   // Scheduled Task: Automatically run 5th-day monthly fee reminder on app initialization
   useEffect(() => {
@@ -35,12 +58,17 @@ export default function App() {
   // Handle Login
   const handleLoginSuccess = (userRole: Role, studentObj?: Student) => {
     setRole(userRole);
+    localStorage.setItem('apex_session_role', userRole);
     if (userRole === 'student' && studentObj) {
       setCurrentStudent(studentObj);
+      localStorage.setItem('apex_session_student', JSON.stringify(studentObj));
       setActiveTab('dashboard');
+      localStorage.setItem('apex_session_tab', 'dashboard');
     } else if (userRole === 'admin') {
       setCurrentStudent(null);
+      localStorage.removeItem('apex_session_student');
       setActiveTab('dashboard');
+      localStorage.setItem('apex_session_tab', 'dashboard');
     }
   };
 
@@ -49,6 +77,9 @@ export default function App() {
     setRole('guest');
     setCurrentStudent(null);
     setActiveTab('home');
+    localStorage.removeItem('apex_session_role');
+    localStorage.removeItem('apex_session_student');
+    localStorage.removeItem('apex_session_tab');
   };
 
   return (

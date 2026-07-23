@@ -12,7 +12,8 @@ import {
   ArrowUpRight,
   Clock,
   CheckCircle2,
-  Bell
+  Bell,
+  FileText
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -41,6 +42,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const students = StorageService.getStudents();
   const batches = StorageService.getBatches();
   const doubts = StorageService.getDoubts();
+  const notes = StorageService.getNotes();
   const fees = StorageService.getFeeRecords();
   const notifications = StorageService.getNotifications().filter(n => n.targetRole === 'admin');
 
@@ -85,12 +87,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           <p className="text-sm text-slate-500">Welcome back, Mr. Subhamoy Mondal! Here is your institute overview.</p>
         </div>
 
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
           
           <button
             onClick={handleSyncCalendar}
             disabled={isSyncingCalendar}
-            className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+            className="col-span-2 sm:col-span-1 w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
           >
             <CalendarSync className="w-4 h-4" /> {isSyncingCalendar ? 'Syncing...' : 'Sync Calendar'}
           </button>
@@ -98,19 +100,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
             onClick={() => onNavigate('students')}
             className="w-full sm:w-auto flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
-            + Create New Student
+            + Add Student
           </button>
           <button
             onClick={() => onNavigate('batches')}
             className="w-full sm:w-auto flex-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
-            + Create Batch
+            + New Batch
+          </button>
+          <button
+            onClick={() => onNavigate('notes')}
+            className="col-span-2 sm:col-span-1 w-full sm:w-auto flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
+          >
+            + Upload Notes
           </button>
         </div>
       </div>
 
-      {/* 4 Stat Cards Matching Image 1 Dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* 5 Stat Cards Matching Image 1 Dashboard */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Students</p>
@@ -145,7 +153,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
               {fees.filter(f => f.status === 'unpaid').length} pending payments
             </p>
           </div>
-          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-bold">
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-bold">
             <IndianRupee className="w-6 h-6" />
           </div>
         </div>
@@ -160,6 +168,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </div>
           <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center font-bold">
             <HelpCircle className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Notes</p>
+            <h3 className="text-3xl font-extrabold text-slate-900 mt-1">{notes.length}</h3>
+            <p className="text-[11px] font-semibold text-indigo-600 mt-1 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Uploaded notes
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-bold">
+            <FileText className="w-6 h-6" />
           </div>
         </div>
       </div>

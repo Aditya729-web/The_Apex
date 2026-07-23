@@ -51,7 +51,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           { id: 'fees', label: 'Fees' },
           { id: 'notes', label: 'Notes' },
           { id: 'doubts', label: 'Doubts' },
-          { id: 'tests', label: 'Tests' }
+          { id: 'tests', label: 'Tests' },
+          { id: 'settings', label: 'Settings' }
         ]
       : role === 'student'
       ? [
@@ -209,17 +210,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Mobile Menu Toggle */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-slate-300 hover:text-white"
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {role !== 'guest' && (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-slate-300 hover:text-white"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Mobile Drawer Menu */}
-      {mobileMenuOpen && (
+      {role !== 'guest' && mobileMenuOpen && (
         <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 py-4 space-y-2 shadow-2xl absolute w-full left-0 z-50 overflow-y-auto max-h-[calc(100vh-4rem)]">
           {navItems.map(item => (
             <button

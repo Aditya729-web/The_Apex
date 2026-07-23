@@ -86,6 +86,26 @@ export class StorageService {
     return newBatch;
   }
 
+  static updateBatch(id: string, batchData: Omit<Batch, 'id' | 'createdAt'>): Batch | null {
+    const batches = this.getBatches();
+    let updatedBatch: Batch | null = null;
+    const updated = batches.map(b => {
+      if (b.id === id) {
+        updatedBatch = { ...b, ...batchData };
+        return updatedBatch;
+      }
+      return b;
+    });
+    
+    if (updatedBatch) {
+      this.saveBatches(updated);
+      
+      // Update batchTitle in students, notes, etc. if needed
+      // To keep it simple, we'll just update the batch.
+    }
+    return updatedBatch;
+  }
+
   static deleteBatch(id: string): void {
     deleteFromFirestore('batches', id);
     const batches = this.getBatches().filter(b => b.id !== id);

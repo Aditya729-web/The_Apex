@@ -111,7 +111,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent p-4 text-center">
                     <span className="text-amber-400 font-extrabold text-xs uppercase tracking-widest block">Senior Chemistry Specialist</span>
                     <h3 className="text-xl font-black text-white">Mr. Subhamoy Mondal</h3>
-                    <p className="text-xs text-slate-300 font-medium">M.Tech • Apex Chemistry Director</p>
+                    <p className="text-xs text-slate-300 font-medium">Apex Chemistry Director</p>
                   </div>
                 </div>
               </div>

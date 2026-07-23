@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { StorageService } from '../../lib/storage';
 import { Batch } from '../../types';
-import { Layers, Plus, Calendar, Clock, Trash2, Users } from 'lucide-react';
+import { Layers, Plus, Calendar, Clock, Trash2, Users, Edit2 } from 'lucide-react';
 
 export const AdminBatches: React.FC = () => {
   const [batches, setBatches] = useState<Batch[]>(() => StorageService.getBatches());
   const students = StorageService.getStudents();
 
+  const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [className, setClassName] = useState('Class 11');
   const [time, setTime] = useState('04:00 PM - 05:30 PM');
@@ -27,20 +28,49 @@ export const AdminBatches: React.FC = () => {
     }
   };
 
+  const handleEditBatch = (batch: Batch) => {
+    setEditingBatchId(batch.id);
+    setTitle(batch.title);
+    setClassName(batch.className);
+    setTime(batch.time);
+    setFees(batch.fees);
+    setSelectedDays(batch.days);
+  };
+
+  const cancelEdit = () => {
+    setEditingBatchId(null);
+    setTitle('');
+    setClassName('Class 11');
+    setTime('04:00 PM - 05:30 PM');
+    setFees(2500);
+    setSelectedDays(['Mon', 'Wed', 'Fri']);
+  };
+
   const handleCreateBatch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || selectedDays.length === 0) return;
 
-    StorageService.addBatch({
-      title,
-      className,
-      time,
-      days: selectedDays,
-      fees: Number(fees)
-    });
+    if (editingBatchId) {
+      StorageService.updateBatch(editingBatchId, {
+        title,
+        className,
+        time,
+        days: selectedDays,
+        fees: Number(fees)
+      });
+      cancelEdit();
+    } else {
+      StorageService.addBatch({
+        title,
+        className,
+        time,
+        days: selectedDays,
+        fees: Number(fees)
+      });
+      setTitle('');
+    }
 
     refreshData();
-    setTitle('');
   };
 
   const handleDeleteBatch = (id: string) => {
@@ -141,12 +171,23 @@ export const AdminBatches: React.FC = () => {
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/20 transition-all"
-            >
-              Save & Schedule Batch
-            </button>
+            <div className="flex gap-2">
+              {editingBatchId && (
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-sm rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/20 transition-all"
+              >
+                {editingBatchId ? 'Update Batch' : 'Save & Schedule Batch'}
+              </button>
+            </div>
           </form>
         </div>
 
@@ -167,13 +208,22 @@ export const AdminBatches: React.FC = () => {
                       <h4 className="text-base font-bold text-slate-900 mt-1">{b.title}</h4>
                     </div>
 
-                    <button
-                      onClick={() => handleDeleteBatch(b.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
-                      title="Delete Batch"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => handleEditBatch(b)}
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                        title="Edit Batch"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBatch(b.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                        title="Delete Batch"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-1 border-t border-slate-100 text-slate-600">

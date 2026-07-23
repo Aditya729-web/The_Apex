@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "students": {
+      "title": "Students",
+      "description": "Enrolled students data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "password": { "type": "string" },
+        "className": { "type": "string" },
+        "batchId": { "type": "string" },
+        "batchTitle": { "type": "string" },
+        "fees": { "type": "number" },
+        "joiningDate": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "name", "phone", "password", "className", "batchId"]
+    },
+    "batches": {
+      "title": "Batches",
+      "description": "Tuition batch schedules",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "className": { "type": "string" },
+        "schedule": { "type": "string" },
+        "timing": { "type": "string" },
+        "fee": { "type": "number" },
+        "studentCount": { "type": "number" },
+        "maxSeats": { "type": "number" }
+      },
+      "required": ["id", "title", "className", "schedule", "timing", "fee"]
+    },
+    "feeRecords": {
+      "title": "Fee Records",
+      "description": "Student monthly tuition fee payment status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "batchId": { "type": "string" },
+        "month": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string" },
+        "paidDate": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "upiRef": { "type": "string" }
+      },
+      "required": ["id", "studentId", "month", "amount", "status"]
+    },
+    "notes": {
+      "title": "Notes",
+      "description": "Faculty study materials and handwritten notes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "className": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileSize": { "type": "string" },
+        "uploadedAt": { "type": "string" },
+        "downloads": { "type": "number" }
+      },
+      "required": ["id", "title", "subject", "fileUrl"]
+    },
+    "doubts": {
+      "title": "Doubts",
+      "description": "Questions and doubts asked by students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "subject": { "type": "string" },
+        "question": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "status": { "type": "string" },
+        "askedAt": { "type": "string" },
+        "answerText": { "type": "string" },
+        "answeredAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "subject", "question"]
+    },
+    "tests": {
+      "title": "Tests",
+      "description": "Test series and student marks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "totalMarks": { "type": "number" },
+        "batchId": { "type": "string" },
+        "className": { "type": "string" },
+        "results": { "type": "array" }
+      },
+      "required": ["id", "title", "date", "totalMarks"]
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "System and fee notifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "targetRole": { "type": "string" },
+        "targetStudentId": { "type": "string" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["id", "title", "message"]
+    },
+    "admin": {
+      "title": "Admin Credentials",
+      "description": "Registered faculty admin account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["username", "password"]
+    }
+  }
+}

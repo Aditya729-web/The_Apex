@@ -53,12 +53,12 @@ export const AdminDoubts: React.FC = () => {
           <p className="text-sm text-slate-500">Review chemistry questions and image attachments submitted by students.</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           {/* BATCH SELECTOR DROPDOWN */}
           <select
             value={selectedBatchId}
             onChange={e => setSelectedBatchId(e.target.value)}
-            className="text-xs px-3 py-2 border border-slate-300 rounded-xl font-semibold outline-none focus:ring-2 focus:ring-indigo-600"
+            className="w-full sm:w-auto text-xs px-3 py-2 border border-slate-300 rounded-xl font-semibold outline-none focus:ring-2 focus:ring-indigo-600"
           >
             <option value="ALL">All Batches Dropdown</option>
             {batches.map(b => (
@@ -71,7 +71,7 @@ export const AdminDoubts: React.FC = () => {
           <select
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value as any)}
-            className="text-xs px-3 py-2 border border-slate-300 rounded-xl font-semibold outline-none focus:ring-2 focus:ring-indigo-600"
+            className="w-full sm:w-auto text-xs px-3 py-2 border border-slate-300 rounded-xl font-semibold outline-none focus:ring-2 focus:ring-indigo-600"
           >
             <option value="ALL">All Statuses</option>
             <option value="PENDING">Pending Only</option>

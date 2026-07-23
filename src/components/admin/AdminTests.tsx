@@ -188,13 +188,13 @@ export const AdminTests: React.FC = () => {
 
         {/* Test Records & Leaderboards */}
         <div className="lg:col-span-6 space-y-4">
-          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200">
             <h3 className="text-base font-bold text-slate-900">Published Tests & Ranks</h3>
 
             <select
               value={filterBatchId}
               onChange={e => setFilterBatchId(e.target.value)}
-              className="text-xs px-3 py-1.5 border border-slate-300 rounded-xl outline-none"
+              className="w-full sm:w-auto text-xs px-3 py-2 sm:py-1.5 border border-slate-300 rounded-xl outline-none"
             >
               <option value="ALL">All Batches</option>
               {batches.map(b => (

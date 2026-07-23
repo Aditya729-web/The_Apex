@@ -153,11 +153,11 @@ export const AdminStudents: React.FC = () => {
           />
         </div>
 
-        <div className="w-full md:w-64">
+        <div className="w-full md:w-64 mt-3 sm:mt-0">
           <select
             value={selectedBatchFilter}
             onChange={e => setSelectedBatchFilter(e.target.value)}
-            className="w-full py-2 px-3 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            className="w-full py-2.5 sm:py-2 px-3 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600"
           >
             <option value="ALL">All Batches ({students.length} students)</option>
             {batches.map(b => (

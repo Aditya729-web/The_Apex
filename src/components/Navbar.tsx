@@ -128,7 +128,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-4 z-50 animate-in fade-in zoom-in-95">
+                <div className="absolute right-0 sm:right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-4 z-50 animate-in fade-in zoom-in-95">
                   <div className="flex justify-between items-center pb-2 border-b border-slate-100 mb-2">
                     <h4 className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
                       <Bell className="w-4 h-4 text-amber-500" /> Notifications
@@ -220,7 +220,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 py-3 space-y-1">
+        <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 py-4 space-y-2 shadow-2xl absolute w-full left-0 z-50">
           {navItems.map(item => (
             <button
               key={item.id}
@@ -228,8 +228,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onTabChange(item.id);
                 setMobileMenuOpen(false);
               }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
-                activeTab === item.id ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+              className={`w-full text-left px-4 py-3 rounded-xl text-base font-bold transition-all ${
+                activeTab === item.id ? 'bg-amber-400 text-slate-950 shadow-md' : 'text-slate-300 hover:text-white hover:bg-slate-800'
               }`}
             >
               {item.label}

@@ -122,7 +122,7 @@ The Apex Chemistry`;
             <select
               value={filterType}
               onChange={e => setFilterType(e.target.value as any)}
-              className="w-full text-xs px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none"
+              className="w-full text-xs px-3 py-2.5 sm:py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none"
             >
               <option value="ALL">All Students</option>
               <option value="BATCH">Filter by Batch Dropdown</option>
@@ -137,7 +137,7 @@ The Apex Chemistry`;
               <select
                 value={selectedBatchId}
                 onChange={e => setSelectedBatchId(e.target.value)}
-                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none"
+                className="w-full text-xs px-3 py-2.5 sm:py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none"
               >
                 <option value="">-- Choose Batch --</option>
                 {batches.map(b => (
@@ -156,7 +156,7 @@ The Apex Chemistry`;
               <select
                 value={selectedStudentId}
                 onChange={e => setSelectedStudentId(e.target.value)}
-                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none"
+                className="w-full text-xs px-3 py-2.5 sm:py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none"
               >
                 <option value="">-- Choose Student --</option>
                 {students.map(s => (

@@ -11,7 +11,8 @@ import {
   Layers,
   Share2,
   Check,
-  X
+  X,
+  Edit2
 } from 'lucide-react';
 
 export const AdminStudents: React.FC = () => {
@@ -23,6 +24,7 @@ export const AdminStudents: React.FC = () => {
 
   // Create Student Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [studentName, setStudentName] = useState('');
   const [studentClass, setStudentClass] = useState('Class 11');
   const [selectedBatchId, setSelectedBatchId] = useState('');
@@ -81,6 +83,25 @@ export const AdminStudents: React.FC = () => {
     e.preventDefault();
     if (!studentName.trim() || !selectedBatchId) return;
 
+    if (editingStudentId) {
+      StorageService.updateStudent(editingStudentId, {
+        name: studentName,
+        className: studentClass,
+        batchId: selectedBatchId,
+        phone: studentPhone || '9876543210',
+        email: studentEmail.trim() || undefined,
+        fees: Number(studentFees)
+      });
+      refreshData();
+      setIsCreateModalOpen(false);
+      setEditingStudentId(null);
+      // Reset Form
+      setStudentName('');
+      setStudentPhone('');
+      setStudentEmail('');
+      return;
+    }
+
     const newStudent = StorageService.addStudent({
       name: studentName,
       className: studentClass,
@@ -96,10 +117,22 @@ export const AdminStudents: React.FC = () => {
     // Reset Form
     setStudentName('');
     setStudentPhone('');
+    setStudentEmail('');
 
     // Open Share Modal
     setCreatedStudentForShare(newStudent);
     setIsShareModalOpen(true);
+  };
+
+  const openEditModal = (student: Student) => {
+    setEditingStudentId(student.id);
+    setStudentName(student.name);
+    setStudentClass(student.className);
+    setSelectedBatchId(student.batchId);
+    setStudentPhone(student.phone);
+    setStudentEmail(student.email || '');
+    setStudentFees(student.fees);
+    setIsCreateModalOpen(true);
   };
 
   const handleDeleteStudent = (id: string) => {
@@ -226,6 +259,13 @@ export const AdminStudents: React.FC = () => {
                         <Share2 className="w-3.5 h-3.5" /> Share ID
                       </button>
                       <button
+                        onClick={() => openEditModal(student)}
+                        className="p-1 text-slate-400 hover:text-indigo-600 transition-colors inline-block"
+                        title="Edit Student"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleDeleteStudent(student.id)}
                         className="p-1 text-slate-400 hover:text-red-600 transition-colors inline-block"
                         title="Delete Student"
@@ -246,15 +286,21 @@ export const AdminStudents: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 border border-amber-200 relative max-h-[90vh] overflow-y-auto">
             <button
-              onClick={() => setIsCreateModalOpen(false)}
+              onClick={() => {
+                setIsCreateModalOpen(false);
+                setEditingStudentId(null);
+                setStudentName('');
+                setStudentPhone('');
+                setStudentEmail('');
+              }}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="mb-5">
-              <h3 className="text-xl font-bold text-slate-900">Create New Student</h3>
-              <p className="text-xs text-slate-500">Fill student details. ID & Password will be auto-generated.</p>
+              <h3 className="text-xl font-bold text-slate-900">{editingStudentId ? 'Edit Student' : 'Create New Student'}</h3>
+              <p className="text-xs text-slate-500">{editingStudentId ? 'Update student details.' : 'Fill student details. ID & Password will be auto-generated.'}</p>
             </div>
 
             <form onSubmit={handleStudentSubmit} className="space-y-4">
@@ -414,7 +460,7 @@ export const AdminStudents: React.FC = () => {
                 type="submit"
                 className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl shadow-lg transition-all"
               >
-                Generate Student ID & Save
+                {editingStudentId ? 'Update Student Details' : 'Generate Student ID & Save'}
               </button>
             </form>
           </div>

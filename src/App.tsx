@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Role, Student } from './types';
 import { Navbar } from './components/Navbar';
+import { ArrowLeft } from 'lucide-react';
 import { LandingPage } from './components/LandingPage';
-import { LoginModal } from './components/LoginModal';
+import { LoginPage } from './components/LoginPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminStudents } from './components/admin/AdminStudents';
 import { AdminBatches } from './components/admin/AdminBatches';
@@ -25,6 +26,7 @@ export default function App() {
   const [role, setRole] = useState<Role>(() => {
     return (localStorage.getItem('apex_session_role') as Role) || 'guest';
   });
+
   const [currentStudent, setCurrentStudent] = useState<Student | null>(() => {
     try {
       const saved = localStorage.getItem('apex_session_student');
@@ -33,6 +35,7 @@ export default function App() {
       return null;
     }
   });
+
   const [activeTab, setActiveTab] = useState<string>(() => {
     const savedRole = localStorage.getItem('apex_session_role');
     const savedTab = localStorage.getItem('apex_session_tab');
@@ -41,7 +44,6 @@ export default function App() {
     }
     return 'home';
   });
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Sync tab changes to storage
   useEffect(() => {
@@ -90,19 +92,35 @@ export default function App() {
         currentStudent={currentStudent}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onLoginClick={() => setIsLoginModalOpen(true)}
+        onLoginClick={() => setActiveTab('login')}
         onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
       <main className="flex-1">
         {role === 'guest' ? (
-          <LandingPage
-            onLoginClick={() => setIsLoginModalOpen(true)}
-            onExploreCourses={() => setIsLoginModalOpen(true)}
-          />
+          activeTab === 'login' ? (
+            <LoginPage
+              onLoginSuccess={handleLoginSuccess}
+              onBack={() => setActiveTab('home')}
+            />
+          ) : (
+            <LandingPage
+              onLoginClick={() => setActiveTab('login')}
+              onExploreCourses={() => setActiveTab('login')}
+            />
+          )
         ) : (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-8">
+            {activeTab !== 'dashboard' && (
+              <button 
+                onClick={() => setActiveTab('dashboard')} 
+                className="mb-6 flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm w-fit"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+              </button>
+            )}
+            
             {role === 'admin' && (
               <>
                 {activeTab === 'dashboard' && <AdminDashboard onNavigate={setActiveTab} />}
@@ -115,7 +133,6 @@ export default function App() {
                 {activeTab === 'settings' && <AdminSettings />}
               </>
             )}
-
             {role === 'student' && currentStudent && (
               <>
                 {activeTab === 'dashboard' && (
@@ -136,13 +153,6 @@ export default function App() {
           </div>
         )}
       </main>
-
-      {/* Login Modal */}
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-      />
     </div>
   );
 }

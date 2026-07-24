@@ -26,9 +26,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
   const handleSyncCalendar = async () => {
     try {
-      if (!window.confirm('Schedule recurring monthly fee reminders in Google Calendar for all students with emails?')) return;
       setIsSyncingCalendar(true);
       await googleSignIn();
+      if (!window.confirm('Schedule recurring monthly fee reminders in Google Calendar for all students with emails?')) return;
       await syncFeeRemindersToCalendar(students);
       alert('Successfully scheduled automated monthly fee reminders in Google Calendar for all students with emails!');
     } catch (err: any) {

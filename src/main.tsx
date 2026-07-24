@@ -4,15 +4,33 @@ import App from './App.tsx';
 import { loadInitialDataFromFirestore } from './lib/firebaseSync';
 import './index.css';
 
-// Render App immediately so screen is never blank
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+const root = createRoot(document.getElementById('root')!);
+
+// Render a loading state initially
+root.render(
+  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
+    <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+    <h2 className="text-xl font-bold">Connecting to Database...</h2>
+    <p className="text-slate-400 mt-2">Loading your study portal securely.</p>
+  </div>
 );
 
-// Load data in background
-loadInitialDataFromFirestore().catch(err => {
-  console.warn("Background load from Firestore skipped or delayed:", err);
-});
+// Load data from Firestore, then render the actual app
+loadInitialDataFromFirestore()
+  .then(() => {
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+  })
+  .catch(err => {
+    console.error("Failed to load initial data from Firestore:", err);
+    // Render the app anyway in case of failure, falling back to local storage
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+  });
 

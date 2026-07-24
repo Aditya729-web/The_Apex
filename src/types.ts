@@ -48,6 +48,7 @@ export interface Note {
   fileSize: string;
   createdAt: string;
   description?: string;
+  recipientCount?: number;
 }
 
 export interface Doubt {
@@ -93,6 +94,19 @@ export interface NotificationItem {
   targetRole: 'admin' | 'student';
   targetStudentId?: string;
   read: boolean;
+}
+
+export interface NoteEmailLog {
+  id: string;
+  title: string;
+  subject: string;
+  batchId: string;
+  batchTitle: string;
+  fileName: string;
+  fileUrl?: string;
+  description: string;
+  sentAt: string;
+  recipientCount: number;
 }
 
 export interface SupabaseConfig {

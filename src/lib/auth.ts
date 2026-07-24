@@ -37,6 +37,23 @@ export const getAccessToken = async (): Promise<string | null> => {
 };
 
 /**
+ * Safely converts a UTF-8 string to base64url format for Gmail API
+ */
+function stringToBase64Url(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  const len = bytes.byteLength;
+  const chunkSize = 8192;
+  for (let i = 0; i < len; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+  }
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/**
  * Creates a base64url encoded MIME email string
  */
 function createMimeMessage(to: string, subject: string, bodyHtml: string, attachment?: { filename: string, content: string, mimeType: string }): string {
@@ -44,6 +61,8 @@ function createMimeMessage(to: string, subject: string, bodyHtml: string, attach
   let messageParts: string[] = [];
 
   if (attachment) {
+    const pureBase64 = attachment.content.replace(/^data:.*?;base64,/, '');
+
     messageParts = [
       `To: ${to}`,
       `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
@@ -60,7 +79,7 @@ function createMimeMessage(to: string, subject: string, bodyHtml: string, attach
       `Content-Disposition: attachment; filename="${attachment.filename}"`,
       `Content-Transfer-Encoding: base64`,
       ``,
-      attachment.content.replace(/^data:.*?;base64,/, ''), // Ensure pure base64
+      pureBase64,
       ``,
       `--${boundary}--`
     ];
@@ -76,11 +95,7 @@ function createMimeMessage(to: string, subject: string, bodyHtml: string, attach
   }
 
   const message = messageParts.join('\r\n');
-
-  return btoa(unescape(encodeURIComponent(message)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return stringToBase64Url(message);
 }
 
 /**

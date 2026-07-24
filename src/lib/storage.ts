@@ -164,6 +164,25 @@ export class StorageService {
     return newStudent;
   }
 
+  static updateStudent(id: string, studentData: Partial<Omit<Student, 'id' | 'password' | 'joiningDate'>>): void {
+    const students = this.getStudents();
+    const batches = this.getBatches();
+    let updatedBatchTitle = studentData.batchTitle;
+    
+    if (studentData.batchId) {
+      const batch = batches.find(b => b.id === studentData.batchId);
+      if (batch) updatedBatchTitle = batch.title;
+    }
+
+    const updated = students.map(s => {
+      if (s.id === id) {
+        return { ...s, ...studentData, batchTitle: updatedBatchTitle || s.batchTitle };
+      }
+      return s;
+    });
+    this.saveStudents(updated);
+  }
+
   static deleteStudent(id: string): void {
     deleteFromFirestore('students', id);
     const students = this.getStudents().filter(s => s.id !== id);
@@ -412,11 +431,17 @@ export class StorageService {
     syncArrayToFirestore('notifications', notifs);
   }
 
-  static addNotification(notif: Omit<NotificationItem, 'id'>): NotificationItem {
+  static addNotification(notif: Omit<NotificationItem, 'id' | 'timestamp'> & { timestamp?: string }): NotificationItem {
     const notifs = this.getNotifications();
+    
+    // Format timestamp nicely, e.g. "Jul 24, 10:30 AM"
+    const now = new Date();
+    const formattedTime = now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    
     const newNotif: NotificationItem = {
       ...notif,
-      id: 'n-' + Date.now().toString(36)
+      id: 'n-' + Date.now().toString(36),
+      timestamp: notif.timestamp && notif.timestamp !== 'Just now' ? notif.timestamp : formattedTime
     };
     const updated = [newNotif, ...notifs];
     this.saveNotifications(updated);

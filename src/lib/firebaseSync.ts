@@ -6,7 +6,9 @@ export async function syncArrayToFirestore(collectionName: string, items: any[])
     // Basic sync: just write each item to Firestore
     for (const item of items) {
       if (item.id) {
-        await setDoc(doc(db, collectionName, item.id), item);
+        // Firestore doesn't support undefined values, so we stringify/parse to remove them
+        const cleanItem = JSON.parse(JSON.stringify(item));
+        await setDoc(doc(db, collectionName, item.id), cleanItem);
       }
     }
   } catch (err) {
@@ -47,6 +49,9 @@ export async function loadInitialDataFromFirestore() {
           hasData = true;
           const data = snap.docs.map(d => d.data());
           localStorage.setItem(`apex_${key}_v2`, JSON.stringify(data));
+        } else {
+          // If firestore is empty for this collection, clear local storage
+          localStorage.setItem(`apex_${key}_v2`, JSON.stringify([]));
         }
       } catch (err) {
         // Ignore single collection fetch fail

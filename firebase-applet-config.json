@@ -1,12 +1,12 @@
 {
-  "projectId": "doubtsolve-ai",
-  "appId": "1:933571793594:web:d606fabf75f6e09a81a883",
-  "apiKey": "AIzaSyCD49zKYhoKqJy3DxLekWIwQu6zG4S4sOY",
-  "authDomain": "doubtsolve-ai.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-theapex-48932e85-4c5d-403a-94ab-740434b9fda5",
-  "storageBucket": "doubtsolve-ai.firebasestorage.app",
-  "messagingSenderId": "933571793594",
+  "projectId": "gen-lang-client-0521821891",
+  "appId": "1:1044529165902:web:28169ad04d7bf6beebf51f",
+  "apiKey": "AIzaSyCBTwQPFepzSP4E5EuzaJd5lVdbwP4-vzk",
+  "authDomain": "gen-lang-client-0521821891.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-theapex-bd421f72-6725-473a-8bd1-e1c86ff79426",
+  "storageBucket": "gen-lang-client-0521821891.firebasestorage.app",
+  "messagingSenderId": "1044529165902",
   "measurementId": "",
-  "oAuthClientId": "933571793594-9bsdsdc8c73bh0lf3km0i2vco6loanmv.apps.googleusercontent.com",
+  "oAuthClientId": "1044529165902-mod0mhq366pv53gqoqbp4hvrqn0eout2.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { StorageService } from '../../lib/storage';
 import { Doubt, Batch } from '../../types';
-import { HelpCircle, CheckCircle2, Clock, MessageSquare, Send, Image as ImageIcon } from 'lucide-react';
+import { HelpCircle, CheckCircle2, Clock, MessageSquare, Send, Image as ImageIcon, Eye, XCircle } from 'lucide-react';
+import { ChunkedImage } from '../ChunkedImage';
 
 export const AdminDoubts: React.FC = () => {
   const [batches] = useState<Batch[]>(() => StorageService.getBatches());
@@ -12,6 +13,8 @@ export const AdminDoubts: React.FC = () => {
 
   const [activeDoubt, setActiveDoubt] = useState<Doubt | null>(null);
   const [answerText, setAnswerText] = useState('');
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState('');
 
   const refreshDoubts = () => {
     setDoubts(StorageService.getDoubts());
@@ -157,12 +160,35 @@ export const AdminDoubts: React.FC = () => {
 
               {activeDoubt.imageUrl && (
                 <div className="pt-2">
-                  <p className="text-[10px] font-bold text-slate-500 mb-1">Attached Picture:</p>
-                  <img
-                    src={activeDoubt.imageUrl}
-                    alt="Student Attachment"
-                    className="w-full max-h-48 object-cover rounded-xl border border-slate-300 shadow-sm"
-                  />
+                  <p className="text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
+                    <span>Attached Picture:</span>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setSelectedImage(activeDoubt.imageUrl!);
+                        setImageModalOpen(true);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded"
+                    >
+                      <Eye className="w-3 h-3" /> View Full
+                    </button>
+                  </p>
+                  {activeDoubt.imageUrl.startsWith('blob:') ? (
+                    <div className="p-4 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 text-xs font-medium text-center">
+                      This image was uploaded using an older, unsupported format and cannot be displayed. Please ask the student to re-upload.
+                    </div>
+                  ) : activeDoubt.imageUrl.startsWith('chunked:') ? (
+                    <ChunkedImage 
+                      fileId={activeDoubt.imageUrl.split(':')[1]} 
+                      className="w-full max-h-48 object-cover rounded-xl border border-slate-300 shadow-sm cursor-pointer hover:opacity-90 transition-opacity" 
+                    />
+                  ) : (
+                    <img
+                      src={activeDoubt.imageUrl}
+                      alt="Student Attachment"
+                      className="w-full max-h-48 object-cover rounded-xl border border-slate-300 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -201,6 +227,34 @@ export const AdminDoubts: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Image Viewer Modal */}
+      {imageModalOpen && selectedImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-2 border border-slate-200 relative max-h-[95vh] overflow-y-auto">
+            <button
+              onClick={() => {
+                setImageModalOpen(false);
+                setSelectedImage('');
+              }}
+              className="absolute top-4 right-4 z-10 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black transition-colors"
+            >
+              <XCircle className="w-6 h-6" />
+            </button>
+            <div className="rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center min-h-[300px]">
+              {selectedImage.startsWith('blob:') ? (
+                <div className="p-6 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 text-sm font-medium text-center max-w-sm mx-auto">
+                  This image was uploaded using an older format and cannot be displayed.
+                </div>
+              ) : selectedImage.startsWith('chunked:') ? (
+                <ChunkedImage fileId={selectedImage.split(':')[1]} className="max-w-full h-auto object-contain" />
+              ) : (
+                <img src={selectedImage} alt="Doubt Attachment" className="max-w-full h-auto object-contain" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

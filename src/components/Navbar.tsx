@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Role, Student, NotificationItem } from '../types';
 import { StorageService } from '../lib/storage';
+import { Logo } from './Logo';
 import {
   Bell,
   LogOut,
   User,
   ShieldCheck,
-  FlaskConical,
   BookOpen,
   Menu,
   X
@@ -69,27 +69,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-[#0B132B] text-white border-b border-slate-800/80 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Logo Branding matching prompt images */}
+        {/* Logo Branding matching uploaded image */}
         <div
           onClick={() => onTabChange(role === 'guest' ? 'home' : 'dashboard')}
-          className="flex items-center gap-2.5 cursor-pointer group"
+          className="cursor-pointer group"
         >
-          <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xl shadow-md group-hover:scale-105 transition-transform border border-amber-300">
-            <FlaskConical className="w-6 h-6 stroke-[2.5]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5 leading-tight">
-              <span className="font-black text-lg tracking-wider text-white uppercase font-sans">
-                CHEMISTRY
-              </span>
-              <span className="font-black text-lg text-amber-400 uppercase font-sans">
-                TUITION
-              </span>
-            </div>
-            <p className="text-[10px] text-amber-300/80 tracking-widest font-bold uppercase leading-none">
-              Your Success, Our Passion
-            </p>
-          </div>
+          <Logo size="md" variant="dark" />
         </div>
 
         {/* Desktop Navigation Links */}
@@ -129,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 sm:right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-4 z-50 animate-in fade-in zoom-in-95">
+                <div className="fixed top-16 left-4 right-4 sm:absolute sm:top-auto sm:left-auto sm:right-0 mt-2 sm:w-80 max-w-sm bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-4 z-50 animate-in fade-in zoom-in-95 mx-auto">
                   <div className="flex justify-between items-center pb-2 border-b border-slate-100 mb-2">
                     <h4 className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
                       <Bell className="w-4 h-4 text-amber-500" /> Notifications
@@ -223,7 +208,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer Menu */}
       {role !== 'guest' && mobileMenuOpen && (
-        <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 py-4 pb-24 space-y-2 shadow-2xl absolute w-full left-0 z-50 overflow-y-auto h-[calc(100vh-4rem)]">
+        <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 py-4 pb-28 space-y-2 shadow-2xl absolute w-full left-0 z-50 overflow-y-auto max-h-[85vh]">
           {navItems.map(item => (
             <button
               key={item.id}
@@ -231,8 +216,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onTabChange(item.id);
                 setMobileMenuOpen(false);
               }}
-              className={`w-full text-left px-4 py-3 rounded-xl text-base font-bold transition-all flex items-center gap-3 ${
-                activeTab === item.id ? 'bg-amber-400 text-slate-950 shadow-md' : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              className={`w-full text-left px-4 py-3.5 rounded-xl text-base font-bold transition-all flex items-center gap-3 min-h-[48px] active:scale-[0.98] ${
+                activeTab === item.id ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold' : 'text-slate-200 hover:text-white hover:bg-slate-800'
               }`}
             >
               {item.label}
@@ -244,7 +229,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setMobileMenuOpen(false);
                 onLogout();
               }}
-              className="w-full text-left px-4 py-3 rounded-xl text-base font-bold transition-all flex items-center gap-3 text-red-400 hover:bg-red-500/10 mt-4 border border-red-500/20"
+              className="w-full text-left px-4 py-3.5 rounded-xl text-base font-bold transition-all flex items-center gap-3 text-red-400 hover:bg-red-500/10 mt-4 border border-red-500/20 min-h-[48px] active:scale-[0.98]"
             >
               <LogOut className="w-5 h-5" /> Logout
             </button>

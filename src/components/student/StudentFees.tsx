@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Student, FeeRecord } from '../../types';
 import { StorageService } from '../../lib/storage';
 import { PayFeesModal } from '../PayFeesModal';
-import { IndianRupee, CheckCircle2, Clock, AlertCircle, QrCode } from 'lucide-react';
+import { IndianRupee, CheckCircle2, Clock, AlertCircle, QrCode, Download, FileText } from 'lucide-react';
+import { generateFeeReceiptPDF } from '../../lib/pdfGenerator';
 
 interface StudentFeesProps {
   student: Student;
@@ -28,9 +29,17 @@ export const StudentFees: React.FC<StudentFeesProps> = ({ student }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Fee Payment Ledger</h2>
-        <p className="text-sm text-slate-500">Track month-by-month fee payments and clear unpaid dues via UPI QR Code.</p>
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Fee Payment Ledger</h2>
+          <p className="text-sm text-slate-500">Track month-by-month fee payments and clear unpaid dues via UPI QR Code.</p>
+        </div>
+        <button
+          onClick={() => generateFeeReceiptPDF(student, feeRecords)}
+          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0 self-start sm:self-auto hover:scale-[1.02]"
+        >
+          <Download className="w-4 h-4 text-amber-400" /> Download Fee Statement PDF
+        </button>
       </div>
 
       {/* Month-by-month table */}
@@ -84,15 +93,27 @@ export const StudentFees: React.FC<StudentFeesProps> = ({ student }) => {
                         >
                           <QrCode className="w-4 h-4" /> Pay Fees via UPI
                         </button>
-                      ) : record.status === 'pending_verification' ? (
-                        <button
-                          onClick={() => handlePayClick(record)}
-                          className="px-3 py-1.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl"
-                        >
-                          View Receipt
-                        </button>
                       ) : (
-                        <span className="text-emerald-600 font-bold text-xs">✓ Cleared</span>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => generateFeeReceiptPDF(student, feeRecords, record)}
+                            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1 border border-indigo-200 shadow-sm"
+                            title="Download PDF Receipt for this month"
+                          >
+                            <Download className="w-3.5 h-3.5 text-indigo-600" /> Receipt PDF
+                          </button>
+                          {record.status === 'pending_verification' && (
+                            <button
+                              onClick={() => handlePayClick(record)}
+                              className="px-3 py-1.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl"
+                            >
+                              View Payment
+                            </button>
+                          )}
+                          {record.status === 'paid' && (
+                            <span className="text-emerald-600 font-bold text-xs pl-1">✓ Cleared</span>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Clock, Upload, CheckCircle2, AlertCircle, RefreshCw, Smartphone } from 'lucide-react';
 import { StorageService } from '../lib/storage';
+import imageCompression from 'browser-image-compression';
+import { uploadFileChunks } from '../lib/fileChunks';
 
 interface PayFeesModalProps {
   isOpen: boolean;
@@ -26,7 +28,9 @@ export const PayFeesModal: React.FC<PayFeesModalProps> = ({
   const [isExpired, setIsExpired] = useState(false);
   const [transactionRef, setTransactionRef] = useState('');
   const [screenshotName, setScreenshotName] = useState('');
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Initialize or restart payment timer
   useEffect(() => {
@@ -37,6 +41,7 @@ export const PayFeesModal: React.FC<PayFeesModalProps> = ({
       setSubmitted(false);
       setTransactionRef('');
       setScreenshotName('');
+      setScreenshotFile(null);
 
       const timer = setTimeout(() => {
         setLoading(false);
@@ -75,19 +80,55 @@ export const PayFeesModal: React.FC<PayFeesModalProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setScreenshotName(e.target.files[0].name);
+      setScreenshotFile(e.target.files[0]);
     }
   };
 
-  const handleSubmitProof = (e: React.FormEvent) => {
+  const handleSubmitProof = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!feeRecord) return;
 
+    setUploading(true);
+    let screenshotBase64 = '';
+    
+    if (screenshotFile) {
+      try {
+        const options = {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1024,
+          useWebWorker: true
+        };
+        const compressedFile = await imageCompression(screenshotFile, options);
+        
+        // Convert to base64
+        screenshotBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(compressedFile);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
+        });
+      } catch (err) {
+        console.error('Error compressing screenshot:', err);
+        alert('Failed to process screenshot. Please try again.');
+        setUploading(false);
+        return;
+      }
+    }
+
     // Update status to pending verification or paid
+    let finalScreenshotUrl = screenshotBase64;
+    
+    if (screenshotBase64) {
+      const fileId = `fee-${Date.now()}`;
+      await uploadFileChunks(fileId, screenshotBase64);
+      finalScreenshotUrl = `chunked:${fileId}`;
+    }
+
     StorageService.updateFeeStatus(
       feeRecord.id,
       'pending_verification',
       transactionRef || 'UPI-' + Math.floor(100000 + Math.random() * 900000),
-      screenshotName ? `uploaded://${screenshotName}` : undefined
+      finalScreenshotUrl || undefined
     );
 
     // Notify Admin
@@ -100,6 +141,7 @@ export const PayFeesModal: React.FC<PayFeesModalProps> = ({
       read: false
     });
 
+    setUploading(false);
     setSubmitted(true);
     if (onSuccess) onSuccess();
   };
@@ -272,15 +314,19 @@ export const PayFeesModal: React.FC<PayFeesModalProps> = ({
 
               <button
                 type="submit"
-                disabled={isExpired}
+                disabled={isExpired || uploading}
                 className={`w-full py-2.5 font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 ${
-                  isExpired
+                  isExpired || uploading
                     ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                     : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
                 }`}
               >
-                <CheckCircle2 className="w-4 h-4" />
-                Confirm Payment & Submit Screenshot
+                {uploading ? (
+                  <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <CheckCircle2 className="w-4 h-4" />
+                )}
+                {uploading ? 'Uploading & Submitting...' : 'Confirm Payment & Submit Screenshot'}
               </button>
             </form>
           </div>

@@ -15,6 +15,7 @@ import {
 import {
   getAuth,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -51,6 +52,7 @@ export {
   where,
   onSnapshot,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   ref,

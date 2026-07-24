@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { StorageService } from '../../lib/storage';
 import { Batch } from '../../types';
-import { Mail, Send, CheckCircle2, FileText, SendHorizontal, History } from 'lucide-react';
-import { sendEmailViaGmail } from '../../lib/auth';
+import { Mail, Send, CheckCircle2, FileText, SendHorizontal, History, Clock, Trash2 } from 'lucide-react';
+import { sendEmailViaGmail, googleSignIn, getAccessToken } from '../../lib/auth';
+import { uploadFileChunks, downloadFileChunks } from '../../lib/fileChunks';
+// import { storage, ref, uploadBytes, getDownloadURL } from '../../lib/firebase';
 
 interface NoteEmailLog {
   id: string;
@@ -11,6 +13,7 @@ interface NoteEmailLog {
   batchId: string;
   batchTitle: string;
   fileName: string;
+  fileUrl?: string;
   description: string;
   sentAt: string;
   recipientCount: number;
@@ -18,14 +21,16 @@ interface NoteEmailLog {
 
 export const AdminNotes: React.FC = () => {
   const [batches] = useState<Batch[]>(() => StorageService.getBatches());
-  const [emailLogs, setEmailLogs] = useState<NoteEmailLog[]>(() => {
-    try {
-      const saved = localStorage.getItem('apex_email_notes_log');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
+  const [notes, setNotes] = useState<any[]>(() => StorageService.getNotes());
+
+  const refreshNotes = () => setNotes(StorageService.getNotes());
+
+  const handleDeleteNote = (id: string, noteTitle: string) => {
+    if (window.confirm(`Are you sure you want to delete "${noteTitle}" from the notes log?`)) {
+      StorageService.deleteNote(id);
+      refreshNotes();
     }
-  });
+  };
 
   const [selectedBatchId, setSelectedBatchId] = useState<string>(batches[0]?.id || '');
   const [filterBatchId, setFilterBatchId] = useState<string>('ALL');
@@ -56,6 +61,25 @@ export const AdminNotes: React.FC = () => {
     e.preventDefault();
     if (!title.trim() || !selectedBatchId) return;
 
+    // Trigger OAuth popup before any other async operation to avoid browser popup blockers
+    let token = await getAccessToken();
+    if (!token) {
+      try {
+        const authResult = await googleSignIn();
+        if (authResult?.accessToken) {
+          token = authResult.accessToken;
+        } else {
+          throw new Error("Authentication failed");
+        }
+      } catch (err: any) {
+        setEmailStatusMsg({
+          type: 'error',
+          text: `Authentication failed: ${err.message}`
+        });
+        return;
+      }
+    }
+
     setIsSending(true);
     setEmailStatusMsg(null);
 
@@ -74,57 +98,62 @@ export const AdminNotes: React.FC = () => {
 
     const effectiveFileName = fileName || selectedFile?.name || `${title.replace(/\s+/g, '_')}_Notes.pdf`;
 
-    const emailSubject = `[The Apex Chemistry] Study Note: ${title}`;
-    const emailBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
-        <div style="background-color: #0b132b; padding: 20px; border-radius: 8px; text-align: center; color: #ffffff;">
-          <h2 style="margin: 0; color: #facc15; font-size: 22px;">The Apex Chemistry</h2>
-          <p style="margin: 4px 0 0 0; font-size: 14px; color: #cbd5e1;">Mr. Subhamoy Mondal • Chemistry Tuition</p>
-        </div>
-        
-        <div style="padding: 20px 0;">
-          <h3 style="color: #1e293b; font-size: 18px; margin-top: 0;">New Study Material Released</h3>
-          <p style="color: #475569; font-size: 14px;">Dear Student,</p>
-          <p style="color: #475569; font-size: 14px;">Mr. Subhamoy Mondal has sent a new study material for your batch <strong>(${batchName})</strong>:</p>
-          
-          <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; padding: 15px; margin: 15px 0; border-radius: 4px;">
-            <p style="margin: 0; font-weight: bold; font-size: 16px; color: #1e293b;">${title}</p>
-            <p style="margin: 5px 0 0 0; font-size: 13px; color: #64748b;">Subject / Topic: <strong>${subject}</strong></p>
-            ${description ? `<p style="margin: 8px 0 0 0; font-size: 13px; color: #334155;"><strong>Details:</strong> ${description}</p>` : ''}
-            <p style="margin: 8px 0 0 0; font-size: 12px; color: #94a3b8;">Document Reference: ${effectiveFileName}</p>
-          </div>
-          
-          <p style="color: #475569; font-size: 14px;">Please review this study material carefully for your upcoming classes and test preparation.</p>
-        </div>
-
-        <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 12px; color: #94a3b8; text-align: center;">
-          <p style="margin: 0;">The Apex Chemistry • Quality Chemistry Coaching for JEE / NEET / CBSE</p>
-        </div>
-      </div>
-    `;
-
     try {
-      let attachmentObj: { filename: string, content: string, mimeType: string } | undefined;
+      let attachment: { filename: string; content: string; mimeType: string } | undefined = undefined;
 
       if (selectedFile) {
+        setEmailStatusMsg({ type: 'success', text: 'Preparing file attachment for email...' });
+
         const base64Data = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
           reader.readAsDataURL(selectedFile);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
         });
-        attachmentObj = {
-          filename: selectedFile.name,
+
+        attachment = {
+          filename: effectiveFileName,
           content: base64Data,
-          mimeType: selectedFile.type || 'application/pdf'
+          mimeType: selectedFile.type || 'application/octet-stream'
         };
       }
+
+      setEmailStatusMsg({ type: 'success', text: 'Dispatching emails to students via Gmail...' });
+
+      const emailSubject = `[The Apex Chemistry] Study Note: ${title}`;
+      const emailBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+          <div style="background-color: #0b132b; padding: 20px; border-radius: 8px; text-align: center; color: #ffffff;">
+            <h2 style="margin: 0; color: #facc15; font-size: 22px;">The Apex Chemistry</h2>
+            <p style="margin: 4px 0 0 0; font-size: 14px; color: #cbd5e1;">Mr. Subhamoy Mondal • Chemistry Tuition</p>
+          </div>
+          
+          <div style="padding: 20px 0;">
+            <h3 style="color: #1e293b; font-size: 18px; margin-top: 0;">New Study Material Released</h3>
+            <p style="color: #475569; font-size: 14px;">Dear Student,</p>
+            <p style="color: #475569; font-size: 14px;">Mr. Subhamoy Mondal has sent a new study material for your batch <strong>(${batchName})</strong>:</p>
+            
+            <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; padding: 15px; margin: 15px 0; border-radius: 4px;">
+              <p style="margin: 0; font-weight: bold; font-size: 16px; color: #1e293b;">${title}</p>
+              <p style="margin: 5px 0 0 0; font-size: 13px; color: #64748b;">Subject / Topic: <strong>${subject}</strong></p>
+              ${description ? `<p style="margin: 8px 0 0 0; font-size: 13px; color: #334155;"><strong>Details:</strong> ${description}</p>` : ''}
+              <p style="margin: 8px 0 0 0; font-size: 12px; color: #4338ca; font-weight: bold;">📎 Attached Document: ${effectiveFileName}</p>
+            </div>
+
+            <p style="color: #475569; font-size: 14px;">Please check the file attachment directly in this email to download and view your study notes.</p>
+          </div>
+
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 12px; color: #94a3b8; text-align: center;">
+            <p style="margin: 0;">The Apex Chemistry • Quality Chemistry Coaching for JEE / NEET / CBSE</p>
+          </div>
+        </div>
+      `;
 
       let successCount = 0;
       let failCount = 0;
 
       for (const student of students) {
-        const res = await sendEmailViaGmail(student.email, emailSubject, emailBody, attachmentObj);
+        const res = await sendEmailViaGmail(student.email, emailSubject, emailBody, attachment, token);
         if (res.success) {
           successCount++;
         } else {
@@ -134,21 +163,19 @@ export const AdminNotes: React.FC = () => {
       }
 
       if (successCount > 0) {
-        const newLog: NoteEmailLog = {
-          id: 'log-' + Date.now().toString(36),
+        // Save note metadata to storage as email log record
+        StorageService.addNote({
           title,
           subject,
+          description,
           batchId: selectedBatchId,
           batchTitle: batchName,
           fileName: effectiveFileName,
-          description,
-          sentAt: new Date().toLocaleString(),
+          fileSize: selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : undefined,
           recipientCount: successCount
-        };
+        });
 
-        const updatedLogs = [newLog, ...emailLogs];
-        setEmailLogs(updatedLogs);
-        localStorage.setItem('apex_email_notes_log', JSON.stringify(updatedLogs));
+        refreshNotes();
 
         setEmailStatusMsg({
           type: 'success',
@@ -176,7 +203,7 @@ export const AdminNotes: React.FC = () => {
     }
   };
 
-  const filteredLogs = emailLogs.filter(l => filterBatchId === 'ALL' || l.batchId === filterBatchId);
+  const filteredNotes = notes.filter(n => filterBatchId === 'ALL' || n.batchId === filterBatchId);
 
   return (
     <div className="space-y-6">
@@ -317,36 +344,65 @@ export const AdminNotes: React.FC = () => {
           </div>
 
           <div className="space-y-3">
-            {filteredLogs.length === 0 ? (
+            {filteredNotes.length === 0 ? (
               <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs space-y-1">
                 <Mail className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                 <p className="font-semibold text-slate-600">No email notes dispatched yet.</p>
                 <p className="text-[11px]">Notes sent via the form will be directly emailed to student inboxes.</p>
               </div>
             ) : (
-              filteredLogs.map(log => (
-                <div key={log.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
+              filteredNotes.map(note => (
+                <div key={note.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between gap-4 group">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold shrink-0">
                       <Mail className="w-5 h-5" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                          {log.subject}
+                          {note.subject}
                         </span>
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                          Emailed to {log.recipientCount} student(s)
+                        {note.recipientCount !== undefined && (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            Emailed to {note.recipientCount} student(s)
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-500 font-mono font-medium flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          {note.createdAt}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono">{log.sentAt}</span>
                       </div>
-                      <h4 className="text-sm font-bold text-slate-900 mt-1">{log.title}</h4>
-                      {log.description && <p className="text-xs text-slate-500 mt-0.5">{log.description}</p>}
-                      <p className="text-[11px] font-mono text-slate-400 mt-1">
-                        Batch: {log.batchTitle} • File Ref: {log.fileName}
-                      </p>
+                      
+                      <h4 className="text-sm font-black text-slate-900 mt-1.5 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                        {note.title}
+                      </h4>
+                      
+                      {note.description && (
+                        <p className="text-xs text-slate-600 mt-1 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                          {note.description}
+                        </p>
+                      )}
+
+                      <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                        <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[200px]" title={note.fileName}>
+                          Document: <strong className="text-slate-900 font-mono">{note.fileName}</strong>
+                        </span>
+                        <span>Batch: <strong className="text-slate-800">{note.batchTitle}</strong></span>
+                        <span className="text-emerald-600 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                          ✉️ Sent directly to student email inboxes
+                        </span>
+                      </div>
                     </div>
                   </div>
+
+                  <button
+                    onClick={() => handleDeleteNote(note.id, note.title)}
+                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all shrink-0 border border-transparent hover:border-red-200"
+                    title="Delete Note Log Entry"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               ))
             )}

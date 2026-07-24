@@ -29,9 +29,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const batches = StorageService.getBatches();
   const studentBatch = batches.find(b => b.id === student.batchId);
 
-  const feeRecords = StorageService.getFeeRecords().filter(f => f.studentId === student.id);
+  const feeRecords = StorageService.getFeeRecords().filter(f => f.studentId && f.studentId.toLowerCase() === student.id.toLowerCase());
   const tests = StorageService.getTests().filter(t => t.batchId === student.batchId);
-  const doubts = StorageService.getDoubts().filter(d => d.studentId === student.id);
+  const doubts = StorageService.getDoubts().filter(d => d.studentId && d.studentId.toLowerCase() === student.id.toLowerCase());
 
   const paidCount = feeRecords.filter(f => f.status === 'paid').length;
   const unpaidCount = feeRecords.filter(f => f.status === 'unpaid').length;

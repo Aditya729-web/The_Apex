@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Role, Student, NotificationItem } from '../types';
 import { StorageService } from '../lib/storage';
 import { Logo } from './Logo';
@@ -31,15 +31,50 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [allNotifications, setAllNotifications] = useState<NotificationItem[]>(() => StorageService.getNotifications());
 
-  const notifications = StorageService.getNotifications().filter(
-    n => n.targetRole === role || (role === 'student' && n.targetStudentId === currentStudent?.id)
-  );
+  useEffect(() => {
+    const refreshNotifs = () => setAllNotifications(StorageService.getNotifications());
+    window.addEventListener('apex_storage_updated', refreshNotifs);
+    window.addEventListener('storage', refreshNotifs);
+    return () => {
+      window.removeEventListener('apex_storage_updated', refreshNotifs);
+      window.removeEventListener('storage', refreshNotifs);
+    };
+  }, []);
+
+  const notifications = allNotifications.filter(n => {
+    if (role === 'admin') return n.targetRole === 'admin';
+    if (role === 'student') {
+      if (n.targetRole !== 'student') return false;
+      if (n.targetStudentId) {
+        return n.targetStudentId.toLowerCase() === currentStudent?.id.toLowerCase();
+      }
+      return true;
+    }
+    return false;
+  });
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleMarkNotificationsRead = () => {
     StorageService.markNotificationsRead(role === 'admin' ? 'admin' : 'student', currentStudent?.id);
+    setAllNotifications(StorageService.getNotifications());
+  };
+
+  const handleNotificationClick = (n: NotificationItem) => {
+    StorageService.markSingleNotificationRead(n.id);
+    setAllNotifications(StorageService.getNotifications());
     setShowNotifications(false);
+
+    if (n.type === 'doubt') {
+      onTabChange('doubts');
+    } else if (n.type === 'fee_reminder' || n.type === 'payment_received') {
+      onTabChange('fees');
+    } else if (n.type === 'note') {
+      onTabChange('notes');
+    } else if (n.type === 'test') {
+      onTabChange('tests');
+    }
   };
 
   const navItems =
@@ -68,11 +103,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-[#0B132B] text-white border-b border-slate-800/80 shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
         {/* Logo Branding matching uploaded image */}
         <div
           onClick={() => onTabChange(role === 'guest' ? 'home' : 'dashboard')}
-          className="cursor-pointer group"
+          className="cursor-pointer group shrink-0"
         >
           <Logo size="md" variant="dark" />
         </div>
@@ -97,7 +132,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
 
         {/* Right Side Actions & User Status */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {role !== 'guest' && (
             <div className="relative">
               <button
@@ -129,24 +164,40 @@ export const Navbar: React.FC<NavbarProps> = ({
                     )}
                   </div>
 
-                  <div className="max-h-64 overflow-y-auto space-y-2 text-xs">
+                  <div className="max-h-72 overflow-y-auto space-y-2 text-xs">
                     {notifications.length === 0 ? (
-                      <p className="text-slate-400 text-center py-4">No notifications yet.</p>
+                      <p className="text-slate-400 text-center py-4 font-medium">No notifications yet.</p>
                     ) : (
                       notifications.slice(0, 5).map(n => (
                         <div
                           key={n.id}
-                          className={`p-2.5 rounded-xl border ${
-                            n.read ? 'bg-slate-50 border-slate-100' : 'bg-amber-50 border-amber-200'
+                          onClick={() => handleNotificationClick(n)}
+                          className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all hover:shadow-sm ${
+                            n.read
+                              ? 'bg-slate-50 border-slate-200/60 hover:bg-slate-100/80'
+                              : 'bg-amber-50/90 border-amber-200 hover:bg-amber-100/80 shadow-xs'
                           }`}
                         >
-                          <p className="font-bold text-slate-800">{n.title}</p>
-                          <p className="text-slate-600 mt-0.5">{n.message}</p>
+                          <div className="flex items-start justify-between gap-1.5">
+                            <p className="font-bold text-slate-900 leading-snug">{n.title}</p>
+                            {!n.read && (
+                              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 mt-1" />
+                            )}
+                          </div>
+                          <p className="text-slate-600 mt-0.5 text-[11px] leading-relaxed">{n.message}</p>
                           <span className="text-[10px] text-slate-400 mt-1 block font-mono">{n.timestamp}</span>
                         </div>
                       ))
                     )}
                   </div>
+
+                  {notifications.length > 5 && (
+                    <div className="mt-2 pt-2 border-t border-slate-100 text-center">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Showing top 5 of {notifications.length} notifications
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

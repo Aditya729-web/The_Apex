@@ -1,12 +1,21 @@
-import { collection, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
+
+export async function syncDocToFirestore(collectionName: string, item: any) {
+  try {
+    if (item && item.id) {
+      const cleanItem = JSON.parse(JSON.stringify(item));
+      await setDoc(doc(db, collectionName, item.id), cleanItem);
+    }
+  } catch (err) {
+    console.error(`Error syncing single doc ${item?.id} to ${collectionName}:`, err);
+  }
+}
 
 export async function syncArrayToFirestore(collectionName: string, items: any[]) {
   try {
-    // Basic sync: just write each item to Firestore
     for (const item of items) {
       if (item.id) {
-        // Firestore doesn't support undefined values, so we stringify/parse to remove them
         const cleanItem = JSON.parse(JSON.stringify(item));
         await setDoc(doc(db, collectionName, item.id), cleanItem);
       }
@@ -22,6 +31,36 @@ export async function deleteFromFirestore(collectionName: string, id: string) {
   } catch (err) {
     console.error(`Error deleting ${id} from ${collectionName}:`, err);
   }
+}
+
+export function setupFirestoreListeners() {
+  const collectionsToListen = [
+    { key: 'doubts', col: 'doubts' },
+    { key: 'notifications', col: 'notifications' },
+    { key: 'notes', col: 'notes' },
+    { key: 'fees', col: 'feeRecords' },
+    { key: 'students', col: 'students' },
+    { key: 'batches', col: 'batches' },
+    { key: 'tests', col: 'tests' }
+  ];
+
+  collectionsToListen.forEach(({ key, col }) => {
+    try {
+      onSnapshot(collection(db, col), (snapshot) => {
+        if (!snapshot.empty) {
+          const items = snapshot.docs.map(d => d.data());
+          localStorage.setItem(`apex_${key}_v2`, JSON.stringify(items));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('apex_storage_updated'));
+          }
+        }
+      }, (err) => {
+        console.debug(`Listener error for ${col}:`, err);
+      });
+    } catch (e) {
+      console.debug(`Failed to attach snapshot listener for ${col}:`, e);
+    }
+  });
 }
 
 export async function loadInitialDataFromFirestore() {
@@ -50,7 +89,6 @@ export async function loadInitialDataFromFirestore() {
           const data = snap.docs.map(d => d.data());
           localStorage.setItem(`apex_${key}_v2`, JSON.stringify(data));
         } else {
-          // If firestore is empty for this collection, clear local storage
           localStorage.setItem(`apex_${key}_v2`, JSON.stringify([]));
         }
       } catch (err) {
@@ -62,6 +100,9 @@ export async function loadInitialDataFromFirestore() {
   } catch (err) {
     console.debug("Firestore initial sync notice:", err);
   }
+
+  // Start background real-time listeners
+  setupFirestoreListeners();
 
   return hasData;
 }

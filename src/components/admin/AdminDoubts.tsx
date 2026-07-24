@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StorageService } from '../../lib/storage';
 import { Doubt, Batch } from '../../types';
 import { HelpCircle, CheckCircle2, Clock, MessageSquare, Send, Image as ImageIcon, Eye, XCircle } from 'lucide-react';
@@ -19,6 +19,18 @@ export const AdminDoubts: React.FC = () => {
   const refreshDoubts = () => {
     setDoubts(StorageService.getDoubts());
   };
+
+  useEffect(() => {
+    const handleUpdate = () => refreshDoubts();
+    window.addEventListener('apex_storage_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('focus', handleUpdate);
+    return () => {
+      window.removeEventListener('apex_storage_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('focus', handleUpdate);
+    };
+  }, []);
 
   const handleAnswerSubmit = (e: React.FormEvent) => {
     e.preventDefault();

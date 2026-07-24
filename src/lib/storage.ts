@@ -1,4 +1,4 @@
-import { syncArrayToFirestore, deleteFromFirestore } from './firebaseSync';
+import { syncArrayToFirestore, syncDocToFirestore, deleteFromFirestore } from './firebaseSync';
 import {
   Batch,
   Student,
@@ -309,6 +309,7 @@ export class StorageService {
 
     const updated = [newDoubt, ...doubts];
     this.saveDoubts(updated);
+    syncDocToFirestore('doubts', newDoubt);
 
     // CRITICAL REQUIREMENT: Trigger Admin notification when student posts a doubt
     this.addNotification({
@@ -320,6 +321,10 @@ export class StorageService {
       read: false
     });
 
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('apex_storage_updated'));
+    }
+
     return newDoubt;
   }
 
@@ -329,31 +334,47 @@ export class StorageService {
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     let targetStudentId = '';
+    let targetQuestion = '';
+    let answeredDoubtDoc: Doubt | null = null;
+
     const updated = doubts.map(d => {
       if (d.id === id) {
         targetStudentId = d.studentId;
-        return {
+        targetQuestion = d.question;
+        answeredDoubtDoc = {
           ...d,
           status: 'answered' as const,
           answerText,
           answeredAt: formattedDate
         };
+        return answeredDoubtDoc;
       }
       return d;
     });
 
     this.saveDoubts(updated);
 
-    // Notify student
-    this.addNotification({
-      title: 'Your Doubt Has Been Answered!',
-      message: `The Apex Chemistry faculty responded to your doubt regarding chemistry concepts.`,
-      type: 'doubt',
-      timestamp: 'Just now',
-      targetRole: 'student',
-      targetStudentId,
-      read: false
-    });
+    if (answeredDoubtDoc) {
+      syncDocToFirestore('doubts', answeredDoubtDoc);
+    }
+
+    // Send targeted notification to student
+    if (targetStudentId) {
+      const questionSnippet = targetQuestion.length > 40 ? targetQuestion.substring(0, 40) + '...' : targetQuestion;
+      this.addNotification({
+        title: 'Faculty Answered Your Doubt!',
+        message: `Mr. Subhamoy Mondal replied to your question: "${questionSnippet}"`,
+        type: 'doubt',
+        timestamp: 'Just now',
+        targetRole: 'student',
+        targetStudentId,
+        read: false
+      });
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('apex_storage_updated'));
+    }
   }
 
   static deleteDoubt(id: string): void {
@@ -445,17 +466,50 @@ export class StorageService {
     };
     const updated = [newNotif, ...notifs];
     this.saveNotifications(updated);
+    syncDocToFirestore('notifications', newNotif);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('apex_storage_updated'));
+    }
+
     return newNotif;
   }
 
-  static markNotificationsRead(role: 'admin' | 'student', studentId?: string): void {
+  static markSingleNotificationRead(id: string): void {
     const notifs = this.getNotifications();
+    let changed = false;
     const updated = notifs.map(n => {
-      if (n.targetRole === role && (!studentId || n.targetStudentId === studentId || !n.targetStudentId)) {
+      if (n.id === id && !n.read) {
+        changed = true;
         return { ...n, read: true };
       }
       return n;
     });
-    this.saveNotifications(updated);
+    if (changed) {
+      this.saveNotifications(updated);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('apex_storage_updated'));
+      }
+    }
+  }
+
+  static markNotificationsRead(role: 'admin' | 'student', studentId?: string): void {
+    const notifs = this.getNotifications();
+    let changed = false;
+    const updated = notifs.map(n => {
+      if (n.targetRole === role) {
+        if (!studentId || !n.targetStudentId || n.targetStudentId.toLowerCase() === studentId.toLowerCase()) {
+          if (!n.read) changed = true;
+          return { ...n, read: true };
+        }
+      }
+      return n;
+    });
+    if (changed) {
+      this.saveNotifications(updated);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('apex_storage_updated'));
+      }
+    }
   }
 }

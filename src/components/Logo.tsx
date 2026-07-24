@@ -24,7 +24,7 @@ export const Logo: React.FC<LogoProps> = ({
   const imageSize = sizeClasses[size] || sizeClasses.md;
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`flex items-center gap-2 sm:gap-3 ${className}`}>
       <div className="relative shrink-0 group">
         <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-indigo-600 rounded-full blur opacity-30 group-hover:opacity-75 transition duration-300"></div>
         <img
@@ -36,20 +36,20 @@ export const Logo: React.FC<LogoProps> = ({
       </div>
 
       {showText && (
-        <div className="flex flex-col">
-          <div className="flex items-center gap-1.5 leading-none">
+        <div className="flex flex-col min-w-0 justify-center">
+          <div className="flex items-center gap-1 sm:gap-1.5 leading-none whitespace-nowrap">
             <span className={`font-black tracking-wider uppercase font-serif ${
               variant === 'light' ? 'text-slate-900' : 'text-white'
-            } ${size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-2xl' : size === 'xl' ? 'text-3xl' : 'text-lg'}`}>
+            } ${size === 'sm' ? 'text-xs sm:text-sm' : size === 'lg' ? 'text-xl sm:text-2xl' : size === 'xl' ? 'text-2xl sm:text-3xl' : 'text-sm sm:text-lg'}`}>
               THE APEX
             </span>
             <span className={`font-black tracking-wider uppercase font-serif text-amber-400 ${
-              size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-2xl' : size === 'xl' ? 'text-3xl' : 'text-lg'
+              size === 'sm' ? 'text-xs sm:text-sm' : size === 'lg' ? 'text-xl sm:text-2xl' : size === 'xl' ? 'text-2xl sm:text-3xl' : 'text-sm sm:text-lg'
             }`}>
               WORLD
             </span>
           </div>
-          <p className={`text-[10px] tracking-widest font-bold uppercase mt-0.5 leading-none ${
+          <p className={`text-[8px] sm:text-[10px] tracking-tight xs:tracking-wider sm:tracking-widest font-bold uppercase mt-0.5 sm:mt-1 leading-tight sm:leading-none whitespace-nowrap ${
             variant === 'light' ? 'text-emerald-700' : 'text-amber-300/90'
           }`}>
             Empowering Minds, Enriching Futures

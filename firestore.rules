@@ -55,8 +55,7 @@ service cloud.firestore {
     // Doubts Collection
     match /doubts/{doubtId} {
       allow read: if true;
-      allow create: if true; // Students can create doubts
-      allow update, delete: if isAdmin();
+      allow write: if true;
     }
     
     // Tests Collection

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Student, Doubt } from '../../types';
 import { StorageService } from '../../lib/storage';
 import { HelpCircle, Send, Upload, Image as ImageIcon, CheckCircle2, Clock, Eye, XCircle } from 'lucide-react';
@@ -11,7 +11,9 @@ interface StudentDoubtsProps {
 
 export const StudentDoubts: React.FC<StudentDoubtsProps> = ({ student }) => {
   const [doubts, setDoubts] = useState<Doubt[]>(() =>
-    StorageService.getDoubts().filter(d => d.studentId === student.id)
+    StorageService.getDoubts().filter(
+      d => d.studentId && d.studentId.toLowerCase() === student.id.toLowerCase()
+    )
   );
 
   const [question, setQuestion] = useState('');
@@ -24,8 +26,25 @@ export const StudentDoubts: React.FC<StudentDoubtsProps> = ({ student }) => {
   const [selectedImage, setSelectedImage] = useState('');
 
   const refreshDoubts = () => {
-    setDoubts(StorageService.getDoubts().filter(d => d.studentId === student.id));
+    setDoubts(
+      StorageService.getDoubts().filter(
+        d => d.studentId && d.studentId.toLowerCase() === student.id.toLowerCase()
+      )
+    );
   };
+
+  useEffect(() => {
+    refreshDoubts();
+    const handleUpdate = () => refreshDoubts();
+    window.addEventListener('apex_storage_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('focus', handleUpdate);
+    return () => {
+      window.removeEventListener('apex_storage_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('focus', handleUpdate);
+    };
+  }, [student.id]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

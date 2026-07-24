@@ -1,5 +1,5 @@
 import React from 'react';
-import apexLogo from '../assets/images/apex_logo.jpg';
+import apexLogo from '../assets/images/apex_logo_1784882809915.jpg';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
